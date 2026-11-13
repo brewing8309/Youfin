@@ -59,7 +59,7 @@ public class YoufinController : ControllerBase
         {
             st.Channel(key).Alias = string.IsNullOrWhiteSpace(body.Name) ? null : body.Name.Trim();
         });
-        _svc.Rebuild();
+        _svc.Reapply();
         return NoContent();
     }
 
@@ -74,7 +74,7 @@ public class YoufinController : ControllerBase
         }
 
         _svc.Store.Update(st => st.Channel(key).MergedInto = body.Into);
-        _svc.Rebuild();
+        _svc.Reapply();
         return NoContent();
     }
 
@@ -83,7 +83,7 @@ public class YoufinController : ControllerBase
     public IActionResult Unmerge([FromRoute] string key)
     {
         _svc.Store.Update(st => st.Channel(key).MergedInto = null);
-        _svc.Rebuild();
+        _svc.Reapply();
         return NoContent();
     }
 

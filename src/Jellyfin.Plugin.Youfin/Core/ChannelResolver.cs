@@ -31,16 +31,19 @@ public static class ChannelResolver
                 ? "name:" + n.Trim().ToLowerInvariant()
                 : UnknownKey;
 
-        if (merges is not null)
+        return new ChannelKey(ApplyMerges(key, merges), name);
+    }
+
+    /// <summary>Follows merge targets (bounded, so cycles cannot hang).</summary>
+    public static string ApplyMerges(string key, IReadOnlyDictionary<string, string>? merges)
+    {
+        var guard = 0;
+        while (merges is not null && merges.TryGetValue(key, out var target) && target != key && guard++ < 16)
         {
-            var guard = 0;
-            while (merges.TryGetValue(key, out var target) && target != key && guard++ < 16)
-            {
-                key = target;
-            }
+            key = target;
         }
 
-        return new ChannelKey(key, name);
+        return key;
     }
 
     private static string? First(params string?[] values)

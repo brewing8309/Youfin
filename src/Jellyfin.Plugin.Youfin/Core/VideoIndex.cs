@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Jellyfin.Plugin.Youfin.Data;
 
 namespace Jellyfin.Plugin.Youfin.Core;
 
-/// <summary>Immutable in-memory snapshot of all videos, swapped atomically on rebuild.</summary>
+/// <summary>
+/// Immutable in-memory snapshot, swapped atomically. Scanned records stay untouched; channel merges,
+/// aliases, series and per-video overrides are applied as an overlay, so state changes need no library rescan.
+/// </summary>
 public sealed class VideoIndex
 {
     public static readonly VideoIndex Empty = new(Array.Empty<VideoRecord>(), new Dictionary<string, string>());
@@ -13,11 +17,23 @@ public sealed class VideoIndex
     private readonly Dictionary<string, VideoRecord> _byKey = new();
     private readonly ILookup<string, VideoRecord> _byChannel;
     private readonly IReadOnlyDictionary<string, string> _aliases;
+    private readonly IReadOnlyDictionary<string, SeriesData> _series;
+    private readonly Dictionary<Guid, string> _seriesOfVideo = new();
+    private readonly ILookup<string, VideoRecord> _bySeries;
+    private readonly IReadOnlyDictionary<string, VideoOverride> _overrides;
 
-    public VideoIndex(IEnumerable<VideoRecord> videos, IReadOnlyDictionary<string, string> aliases)
+    public VideoIndex(
+        IEnumerable<VideoRecord> videos,
+        IReadOnlyDictionary<string, string> aliases,
+        IReadOnlyDictionary<string, string>? merges = null,
+        IReadOnlyDictionary<string, SeriesData>? series = null,
+        IReadOnlyDictionary<string, VideoOverride>? overrides = null)
     {
-        All = videos.ToList();
+        All = videos.Select(v => merges is { Count: > 0 } && ChannelResolver.ApplyMerges(v.Channel.Key, merges) is var k && k != v.Channel.Key
+            ? v with { Channel = v.Channel with { Key = k } } : v).ToList();
         _aliases = aliases;
+        _series = series ?? new Dictionary<string, SeriesData>();
+        _overrides = overrides ?? new Dictionary<string, VideoOverride>();
         _byId = All.ToDictionary(v => v.ItemId);
         foreach (var v in All)
         {
@@ -25,6 +41,15 @@ public sealed class VideoIndex
         }
 
         _byChannel = All.ToLookup(v => v.Channel.Key);
+        foreach (var v in All)
+        {
+            if (ResolveSeries(v) is { } sid)
+            {
+                _seriesOfVideo[v.ItemId] = sid;
+            }
+        }
+
+        _bySeries = All.Where(v => _seriesOfVideo.ContainsKey(v.ItemId)).ToLookup(v => _seriesOfVideo[v.ItemId]);
     }
 
     public IReadOnlyList<VideoRecord> All { get; }
@@ -42,9 +67,39 @@ public sealed class VideoIndex
         return key.StartsWith("item:", StringComparison.Ordinal) && Guid.TryParse(key.AsSpan(5), out var id) ? Get(id) : null;
     }
 
-    public Page<VideoRecord> ByKeys(IEnumerable<string> keys, int start, int limit) =>
-        Paginate(keys.Select(GetByKey).OfType<VideoRecord>().ToList(), start, limit);
+    /// <summary>Series id of a video, or null for a standalone video. Precedence: detached > explicit series > channel rule.</summary>
+    public string? SeriesOf(Guid videoId) => _seriesOfVideo.GetValueOrDefault(videoId);
 
+    public bool IsStandalone(Guid videoId) => !_seriesOfVideo.ContainsKey(videoId);
+
+    public SeriesData? GetSeries(string id) => _series.GetValueOrDefault(id);
+
+    private string? ResolveSeries(VideoRecord v)
+    {
+        var ov = OverrideOf(v);
+        if (ov?.Detached == true)
+        {
+            return null;
+        }
+
+        if (ov?.SeriesId is { } sid && _series.ContainsKey(sid))
+        {
+            return sid;
+        }
+
+        return _series.Where(s => s.Value.AutoChannelKey == v.Channel.Key).OrderBy(s => s.Key, StringComparer.Ordinal)
+            .Select(s => s.Key).FirstOrDefault();
+    }
+
+    private VideoOverride? OverrideOf(VideoRecord v)
+    {
+        if (_overrides.TryGetValue(v.VideoKey, out var o))
+        {
+            return o;
+        }
+
+        return _overrides.GetValueOrDefault("item:" + v.ItemId.ToString("N"));
+    }
 
     /// <summary>Display name: user alias, else the most frequent name among the channel's videos.</summary>
     public string ChannelName(string key) =>
@@ -78,10 +133,52 @@ public sealed class VideoIndex
         return Paginate(q.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList(), start, limit);
     }
 
-    public Page<VideoRecord> Videos(string? channelKey, VideoSort sort, bool descending, int start, int limit,
-        string? search = null, string? category = null)
+    public Page<SeriesSummary> SeriesList(string? search, int start, int limit)
     {
-        IEnumerable<VideoRecord> q = channelKey is null ? All : _byChannel[channelKey];
+        var q = _series.Select(s =>
+        {
+            var vids = _bySeries[s.Key].ToList();
+            return new SeriesSummary(s.Key, s.Value.Name, vids.Count, vids.Max(v => v.Published),
+                OrderedSeries(s.Key).FirstOrDefault()?.ItemId, s.Value.AutoChannelKey);
+        });
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            q = q.Where(s => s.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Paginate(q.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList(), start, limit);
+    }
+
+    /// <summary>Series members in the series' own order (published = chronological episodes).</summary>
+    public IReadOnlyList<VideoRecord> OrderedSeries(string seriesId)
+    {
+        var members = _bySeries[seriesId];
+        var sort = _series.GetValueOrDefault(seriesId)?.Sort ?? "published";
+        return (sort switch
+        {
+            "title" => members.OrderBy(v => v.Title, StringComparer.OrdinalIgnoreCase),
+            "manual" => members.OrderBy(v => OverrideOf(v)?.Order ?? int.MaxValue).ThenBy(v => v.Published ?? DateTime.MinValue),
+            _ => members.OrderBy(v => v.Published ?? DateTime.MinValue).ThenBy(v => v.Title, StringComparer.OrdinalIgnoreCase),
+        }).ToList();
+    }
+
+    /// <param name="seriesId">Only members of this series, in series order when <paramref name="sort"/> is Series.</param>
+    /// <param name="standalone">true = only videos without series, false = only series videos.</param>
+    public Page<VideoRecord> Videos(string? channelKey, VideoSort sort, bool descending, int start, int limit,
+        string? search = null, string? category = null, string? seriesId = null, bool? standalone = null)
+    {
+        IEnumerable<VideoRecord> q = seriesId is not null ? OrderedSeries(seriesId)
+            : channelKey is null ? All : _byChannel[channelKey];
+        if (seriesId is not null && channelKey is not null)
+        {
+            q = q.Where(v => v.Channel.Key == channelKey);
+        }
+
+        if (standalone is { } s)
+        {
+            q = q.Where(v => IsStandalone(v.ItemId) == s);
+        }
+
         if (!string.IsNullOrWhiteSpace(category))
         {
             q = q.Where(v => v.Categories.Contains(category, StringComparer.OrdinalIgnoreCase));
@@ -93,15 +190,19 @@ public sealed class VideoIndex
             q = q.Where(v => Matches(v, terms));
         }
 
-        q = (sort, descending) switch
+        if (sort != VideoSort.Series || seriesId is null)
         {
-            (VideoSort.Title, false) => q.OrderBy(v => v.Title, StringComparer.OrdinalIgnoreCase),
-            (VideoSort.Title, true) => q.OrderByDescending(v => v.Title, StringComparer.OrdinalIgnoreCase),
-            (VideoSort.Published, false) => q.OrderBy(v => v.Published ?? DateTime.MinValue),
-            (VideoSort.Published, true) => q.OrderByDescending(v => v.Published ?? DateTime.MinValue),
-            (VideoSort.Added, false) => q.OrderBy(v => v.Added),
-            _ => q.OrderByDescending(v => v.Added),
-        };
+            q = (sort, descending) switch
+            {
+                (VideoSort.Title, false) => q.OrderBy(v => v.Title, StringComparer.OrdinalIgnoreCase),
+                (VideoSort.Title, true) => q.OrderByDescending(v => v.Title, StringComparer.OrdinalIgnoreCase),
+                (VideoSort.Published, false) => q.OrderBy(v => v.Published ?? DateTime.MinValue),
+                (VideoSort.Published, true) => q.OrderByDescending(v => v.Published ?? DateTime.MinValue),
+                (VideoSort.Added, false) => q.OrderBy(v => v.Added),
+                _ => q.OrderByDescending(v => v.Added),
+            };
+        }
+
         return Paginate(q.ToList(), start, limit);
     }
 
@@ -123,6 +224,9 @@ public sealed class VideoIndex
             .GroupBy(c => c, StringComparer.OrdinalIgnoreCase)
             .Select(g => new CategorySummary(g.Key, g.Count()))
             .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
+
+    public Page<VideoRecord> ByKeys(IEnumerable<string> keys, int start, int limit) =>
+        Paginate(keys.Select(GetByKey).OfType<VideoRecord>().ToList(), start, limit);
 
     private static Page<T> Paginate<T>(List<T> all, int start, int limit)
     {

@@ -27,7 +27,8 @@ public sealed class LibraryScanner
         _log = log;
     }
 
-    public IReadOnlyList<VideoRecord> Scan(IReadOnlyDictionary<string, string> merges)
+    /// <summary>Raw records; channel merges are applied later by <see cref="VideoIndex"/>.</summary>
+    public IReadOnlyList<VideoRecord> Scan()
     {
         var items = _library.GetItemList(new InternalItemsQuery
         {
@@ -41,7 +42,7 @@ public sealed class LibraryScanner
         {
             try
             {
-                result.Add(ToRecord(item, merges));
+                result.Add(ToRecord(item));
             }
             catch (Exception ex)
             {
@@ -53,7 +54,7 @@ public sealed class LibraryScanner
         return result;
     }
 
-    private VideoRecord ToRecord(BaseItem item, IReadOnlyDictionary<string, string> merges)
+    private VideoRecord ToRecord(BaseItem item)
     {
         item.ProviderIds.TryGetValue(ProviderKey, out var ytId);
         ytId ??= YouTubeIdParser.ParseVideoId(item.Path);
@@ -78,7 +79,7 @@ public sealed class LibraryScanner
         }
 
         var folder = string.IsNullOrEmpty(item.Path) ? null : new DirectoryInfo(Path.GetDirectoryName(item.Path) ?? "").Name;
-        var channel = ChannelResolver.Resolve(new ChannelSources(personId, personName, seriesId, seriesName, info, folder), merges);
+        var channel = ChannelResolver.Resolve(new ChannelSources(personId, personName, seriesId, seriesName, info, folder));
 
         return new VideoRecord(item.Id, ytId, item.Name ?? "", item.Overview, item.PremiereDate, item.DateCreated,
             item.RunTimeTicks, item.Path, channel, info?.Tags ?? Array.Empty<string>(), info?.Categories ?? Array.Empty<string>());

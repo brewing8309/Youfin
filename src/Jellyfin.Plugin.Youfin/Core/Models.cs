@@ -26,8 +26,10 @@ public sealed record VideoRecord(
 
 public sealed record ChannelSummary(string Key, string Name, int VideoCount, DateTime? LatestPublished, Guid? SampleVideoId, bool IsFavorite = false);
 
+public sealed record SeriesSummary(string Id, string Name, int VideoCount, DateTime? LatestPublished, Guid? FirstVideoId, string? AutoChannelKey);
+
 public sealed record CategorySummary(string Name, int VideoCount);
 
-public enum VideoSort { Added, Published, Title }
+public enum VideoSort { Added, Published, Title, Series }
 
 public sealed record Page<T>(IReadOnlyList<T> Items, int Total, int StartIndex);

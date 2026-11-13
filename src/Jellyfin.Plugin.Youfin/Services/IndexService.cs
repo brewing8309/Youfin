@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ public sealed class IndexService : IHostedService, IDisposable
     private readonly Timer _timer;
     private readonly object _lock = new();
     private volatile VideoIndex _index = VideoIndex.Empty;
+    private IReadOnlyList<VideoRecord> _raw = Array.Empty<VideoRecord>();
 
     public IndexService(LibraryScanner scanner, UserDataStore store, ILibraryManager library, ILogger<IndexService> log)
     {
@@ -35,14 +37,34 @@ public sealed class IndexService : IHostedService, IDisposable
 
     public VideoIndex Index => _index;
 
+    /// <summary>Rescans the Jellyfin library, then applies the Youfin overlay.</summary>
     public void Rebuild()
     {
         lock (_lock)
         {
             try
             {
-                var state = Store.State;
-                _index = new VideoIndex(_scanner.Scan(state.MergeMap()), state.AliasMap());
+                _raw = _scanner.Scan();
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Youfin: library scan failed; keeping previous data");
+                return;
+            }
+
+            Reapply();
+        }
+    }
+
+    /// <summary>Re-applies merges, aliases, series and overrides to the last scan (no library access, fast).</summary>
+    public void Reapply()
+    {
+        lock (_lock)
+        {
+            try
+            {
+                var st = Store.State;
+                _index = new VideoIndex(_raw, st.AliasMap(), st.MergeMap(), st.Series, st.Overrides);
                 NormalizeKeys(_index);
             }
             catch (Exception ex)
