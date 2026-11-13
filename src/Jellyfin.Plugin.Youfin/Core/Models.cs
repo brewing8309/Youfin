@@ -17,7 +17,9 @@ public sealed record VideoRecord(
     IReadOnlyList<string> Tags,
     IReadOnlyList<string> Categories);
 
-public sealed record ChannelSummary(string Key, string Name, int VideoCount, DateTime? LatestPublished, Guid? SampleVideoId);
+public sealed record ChannelSummary(string Key, string Name, int VideoCount, DateTime? LatestPublished, Guid? SampleVideoId, bool IsFavorite = false);
+
+public sealed record CategorySummary(string Name, int VideoCount);
 
 public enum VideoSort { Added, Published, Title }
 

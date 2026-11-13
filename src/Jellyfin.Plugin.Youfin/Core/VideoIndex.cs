@@ -32,13 +32,23 @@ public sealed class VideoIndex
             : _byChannel[key].GroupBy(v => v.Channel.Name).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
                 .Select(g => g.Key).FirstOrDefault() ?? key;
 
-    public Page<ChannelSummary> Channels(string? search, int start, int limit)
+    public Page<ChannelSummary> Channels(string? search, int start, int limit, ISet<string>? favorites = null, bool onlyFavorites = false)
     {
         var q = _byChannel.Select(g =>
         {
             return new ChannelSummary(g.Key, ChannelName(g.Key), g.Count(),
                 g.Max(v => v.Published), g.OrderByDescending(v => v.Published ?? v.Added).First().ItemId);
         });
+        if (favorites is not null)
+        {
+            q = q.Select(c => c with { IsFavorite = favorites.Contains(c.Key) });
+        }
+
+        if (onlyFavorites)
+        {
+            q = q.Where(c => c.IsFavorite);
+        }
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             q = q.Where(c => c.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
@@ -47,9 +57,21 @@ public sealed class VideoIndex
         return Paginate(q.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList(), start, limit);
     }
 
-    public Page<VideoRecord> Videos(string? channelKey, VideoSort sort, bool descending, int start, int limit)
+    public Page<VideoRecord> Videos(string? channelKey, VideoSort sort, bool descending, int start, int limit,
+        string? search = null, string? category = null)
     {
         IEnumerable<VideoRecord> q = channelKey is null ? All : _byChannel[channelKey];
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            q = q.Where(v => v.Categories.Contains(category, StringComparer.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var terms = search.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            q = q.Where(v => Matches(v, terms));
+        }
+
         q = (sort, descending) switch
         {
             (VideoSort.Title, false) => q.OrderBy(v => v.Title, StringComparer.OrdinalIgnoreCase),
@@ -61,6 +83,28 @@ public sealed class VideoIndex
         };
         return Paginate(q.ToList(), start, limit);
     }
+
+    /// <summary>All terms must match title, channel, description, YouTube ID, tags or categories (case-insensitive).</summary>
+    private bool Matches(VideoRecord v, string[] terms)
+    {
+        var channel = ChannelName(v.Channel.Key);
+        return terms.All(t =>
+            v.Title.Contains(t, StringComparison.OrdinalIgnoreCase)
+            || channel.Contains(t, StringComparison.OrdinalIgnoreCase)
+            || (v.Overview?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (v.YouTubeId?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
+            || v.Tags.Any(x => x.Contains(t, StringComparison.OrdinalIgnoreCase))
+            || v.Categories.Any(x => x.Contains(t, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    public IReadOnlyList<CategorySummary> Categories() =>
+        All.SelectMany(v => v.Categories.Distinct(StringComparer.OrdinalIgnoreCase))
+            .GroupBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new CategorySummary(g.Key, g.Count()))
+            .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
+
+    public Page<VideoRecord> ByIds(IEnumerable<Guid> ids, int start, int limit) =>
+        Paginate(ids.Select(Get).OfType<VideoRecord>().ToList(), start, limit);
 
     private static Page<T> Paginate<T>(List<T> all, int start, int limit)
     {

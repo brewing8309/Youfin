@@ -1,1 +1,44 @@
-<div data-role="page" class="page type-interior"><div data-role="content"><div class="content-primary"><h1>Youfin</h1></div></div></div>
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Youfin</title></head>
+<body>
+<div id="YoufinPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+  <div data-role="content">
+    <div class="content-primary">
+      <h2>Youfin</h2>
+      <p><a is="emby-linkbutton" class="button-link" href="/Youfin/Web/" target="_blank">Youfin-Oberfläche öffnen</a></p>
+      <form id="YoufinForm">
+        <label class="checkboxContainer">
+          <input is="emby-checkbox" type="checkbox" id="SyncCollections">
+          <span>Pro Kanal eine Jellyfin-Collection anlegen (für FireTV, Swiftfin, Infuse)</span>
+        </label>
+        <div class="fieldDescription">Läuft über die geplante Aufgabe "Youfin: Kanal-Collections synchronisieren" (täglich oder manuell).</div>
+        <br>
+        <button is="emby-button" type="submit" class="raised button-submit block"><span>Speichern</span></button>
+      </form>
+    </div>
+  </div>
+  <script type="text/javascript">
+    (function () {
+      var id = '6b1f3c5e-8a47-4d2b-9c0e-3f5a7d9e1b24';
+      var page = document.querySelector('#YoufinPage');
+      page.addEventListener('pageshow', function () {
+        Dashboard.showLoadingMsg();
+        ApiClient.getPluginConfiguration(id).then(function (c) {
+          page.querySelector('#SyncCollections').checked = !!c.SyncCollections;
+          Dashboard.hideLoadingMsg();
+        });
+      });
+      page.querySelector('#YoufinForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        Dashboard.showLoadingMsg();
+        ApiClient.getPluginConfiguration(id).then(function (c) {
+          c.SyncCollections = page.querySelector('#SyncCollections').checked;
+          ApiClient.updatePluginConfiguration(id, c).then(Dashboard.processPluginConfigurationUpdateResult);
+        });
+      });
+    })();
+  </script>
+</div>
+</body>
+</html>

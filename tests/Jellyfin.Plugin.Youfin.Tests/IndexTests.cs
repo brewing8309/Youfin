@@ -58,3 +58,43 @@ public class ChannelNameTests
         Assert.Equal("Mine", new VideoIndex(vids, new Dictionary<string, string> { ["id:X"] = "Mine" }).ChannelName("id:X"));
     }
 }
+
+public class SearchTests
+{
+    private static VideoRecord V(string t, string ch, string? yt, string? ov, string[] tags, string[] cats) =>
+        new(Guid.NewGuid(), yt, t, ov, null, DateTime.UtcNow, null, null, new ChannelKey("id:" + ch, ch), tags, cats);
+
+    private static VideoIndex Idx() => new([
+        V("Rust Tutorial", "Code", "aaaaaaaaaaa", "learn borrowing", ["rust"], ["Education"]),
+        V("Gaming Night", "Play", "bbbbbbbbbbb", null, [], ["Gaming"]),
+    ], new Dictionary<string, string>());
+
+    [Theory]
+    [InlineData("rust", 1)]
+    [InlineData("play", 1)]            // channel
+    [InlineData("borrowing", 1)]       // description
+    [InlineData("bbbbbbbbbbb", 1)]     // youtube id
+    [InlineData("rust education", 1)]  // all terms, tags + category
+    [InlineData("rust gaming", 0)]
+    [InlineData("zzz", 0)]
+    public void SearchMatches(string q, int expected) =>
+        Assert.Equal(expected, Idx().Videos(null, VideoSort.Title, false, 0, 50, search: q).Total);
+
+    [Fact]
+    public void CategoriesAndFilter()
+    {
+        var i = Idx();
+        Assert.Equal(2, i.Categories().Count);
+        Assert.Equal(1, i.Videos(null, VideoSort.Title, false, 0, 50, category: "gaming").Total);
+    }
+
+    [Fact]
+    public void FavoriteChannelsFlagAndFilter()
+    {
+        var i = Idx();
+        var fav = new HashSet<string> { "id:Code" };
+        var all = i.Channels(null, 0, 10, fav);
+        Assert.True(all.Items.First(c => c.Key == "id:Code").IsFavorite);
+        Assert.Single(i.Channels(null, 0, 10, fav, onlyFavorites: true).Items);
+    }
+}

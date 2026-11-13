@@ -78,3 +78,10 @@ build.yaml, .github/workflows (Build, Release, manifest.json)
 - **UI-Auslieferung:** Plugin liefert die SPA als eingebettete Ressourcen unter `/Youfin/Web/` (anonym nur statische Dateien, alle Daten-Endpunkte erfordern Login). Token kommt aus `localStorage.jellyfin_credentials` (gleiche Origin).
 - **Verifiziert (Jellyfin 12.4):** Scan, API, Auth (401 ohne Login), Resume/Recent/Favorites über `InternalItemsQuery`, Deep-Link `/web/#/details?id=<id>` öffnet die native Detailseite, `menuLinks` in `jellyfin-web/config.json` (`{name, icon, url}`) zeigt Links in der Seitenleiste für alle Nutzer.
 - **Nicht möglich/ungeprüft:** Autoplay per Deep-Link (Detailseite mit Abspielen-Button als Fallback). Playlists, Kategorien, Suche, Kanal-Favoriten: Phase 4.
+
+## Phase 4 (verifiziert gegen Jellyfin 12.4)
+- **Suche:** Titel, Kanalname, Beschreibung, YouTube-ID, Tags, Kategorien (alle Begriffe müssen passen). `GET /Youfin/Videos?q=`.
+- **Kanäle:** Favoriten pro Nutzer, Umbenennen (nur Alias, Original unverändert) und Zusammenführen/Aufheben nur für Admins. Änderungen liegen in `state.json`.
+- **Kategorien:** aus `categories` der info.json (`GET /Youfin/Categories`, `?category=`). Manuelle Zuordnung geschieht über Playlists.
+- **Playlists:** pro Nutzer (`/Youfin/Playlists`), Reihenfolge = Einfüge-Reihenfolge.
+- **Apps (FireTV/Swiftfin/Infuse):** geplante Aufgabe "Youfin: Kanal-Collections synchronisieren" legt pro Kanal (ab 2 Videos) eine BoxSet-Collection an, fügt nur hinzu und löscht nie. In den Plugin-Einstellungen aktivieren (standardmäßig aus).

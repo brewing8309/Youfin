@@ -7,6 +7,7 @@ using System.Security.Claims;
 using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.Youfin.Core;
+using Jellyfin.Plugin.Youfin.Data;
 using Jellyfin.Plugin.Youfin.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -39,21 +40,148 @@ public class YoufinController : ControllerBase
     private Guid UserId => Guid.TryParse(User.FindFirstValue("Jellyfin-UserId"), out var g) ? g : Guid.Empty;
 
     [HttpGet("Channels")]
-    public ActionResult<Page<ChannelSummary>> Channels([FromQuery] string? search, [FromQuery] int startIndex = 0, [FromQuery] int limit = 50) =>
-        _svc.Index.Channels(search, startIndex, limit);
+    public ActionResult<Page<ChannelSummary>> Channels(
+        [FromQuery] string? search, [FromQuery] bool favorites = false, [FromQuery] int startIndex = 0, [FromQuery] int limit = 50) =>
+        _svc.Index.Channels(search, startIndex, limit, MyFavorites(), favorites);
+
+    [HttpPost("Channels/{key}/Favorite")]
+    public IActionResult AddFavorite([FromRoute] string key) => SetFavorite(key, true);
+
+    [HttpDelete("Channels/{key}/Favorite")]
+    public IActionResult RemoveFavorite([FromRoute] string key) => SetFavorite(key, false);
+
+    /// <summary>Rename a channel for display only; empty name removes the alias. Original metadata is untouched.</summary>
+    [HttpPut("Channels/{key}/Name")]
+    [Authorize(Policy = "RequiresElevation")]
+    public IActionResult Rename([FromRoute] string key, [FromBody] NameBody body)
+    {
+        _svc.Store.Update(st =>
+        {
+            if (string.IsNullOrWhiteSpace(body.Name)) { st.ChannelAliases.Remove(key); } else { st.ChannelAliases[key] = body.Name.Trim(); }
+        });
+        _svc.Rebuild();
+        return NoContent();
+    }
+
+    /// <summary>Merge channel <paramref name="key"/> into another channel.</summary>
+    [HttpPost("Channels/{key}/Merge")]
+    [Authorize(Policy = "RequiresElevation")]
+    public IActionResult Merge([FromRoute] string key, [FromBody] MergeBody body)
+    {
+        if (string.IsNullOrWhiteSpace(body.Into) || body.Into == key)
+        {
+            return BadRequest("Invalid target");
+        }
+
+        _svc.Store.Update(st => st.ChannelMerges[key] = body.Into);
+        _svc.Rebuild();
+        return NoContent();
+    }
+
+    [HttpDelete("Channels/{key}/Merge")]
+    [Authorize(Policy = "RequiresElevation")]
+    public IActionResult Unmerge([FromRoute] string key)
+    {
+        _svc.Store.Update(st => st.ChannelMerges.Remove(key));
+        _svc.Rebuild();
+        return NoContent();
+    }
+
+    [HttpGet("Categories")]
+    public ActionResult<IReadOnlyList<CategorySummary>> Categories() => Ok(_svc.Index.Categories());
+
+    [HttpGet("Playlists")]
+    public ActionResult<IEnumerable<PlaylistDto>> Playlists() =>
+        Ok(Mine().Select(p => new PlaylistDto(p.Id, p.Name, p.VideoIds.Count)));
+
+    [HttpPost("Playlists")]
+    public ActionResult<PlaylistDto> CreatePlaylist([FromBody] NameBody body)
+    {
+        if (string.IsNullOrWhiteSpace(body.Name))
+        {
+            return BadRequest("Name required");
+        }
+
+        var pl = new PlaylistData { Name = body.Name.Trim() };
+        _svc.Store.Update(st => PlaylistsOf(st).Add(pl));
+        return new PlaylistDto(pl.Id, pl.Name, 0);
+    }
+
+    [HttpDelete("Playlists/{id}")]
+    public IActionResult DeletePlaylist([FromRoute] string id)
+    {
+        _svc.Store.Update(st => PlaylistsOf(st).RemoveAll(p => p.Id == id));
+        return NoContent();
+    }
+
+    [HttpPost("Playlists/{id}/Videos/{videoId}")]
+    public IActionResult AddToPlaylist([FromRoute] string id, [FromRoute] Guid videoId)
+    {
+        if (_svc.Index.Get(videoId) is null)
+        {
+            return NotFound();
+        }
+
+        var found = false;
+        _svc.Store.Update(st =>
+        {
+            var pl = PlaylistsOf(st).FirstOrDefault(p => p.Id == id);
+            if (pl is null) { return; }
+            found = true;
+            if (!pl.VideoIds.Contains(videoId)) { pl.VideoIds.Add(videoId); }
+        });
+        return found ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("Playlists/{id}/Videos/{videoId}")]
+    public IActionResult RemoveFromPlaylist([FromRoute] string id, [FromRoute] Guid videoId)
+    {
+        _svc.Store.Update(st => PlaylistsOf(st).FirstOrDefault(p => p.Id == id)?.VideoIds.Remove(videoId));
+        return NoContent();
+    }
+
+    private ISet<string> MyFavorites() =>
+        _svc.Store.State.FavoriteChannels.GetValueOrDefault(UserId.ToString("N")) ?? new HashSet<string>();
+
+    private List<PlaylistData> Mine() => _svc.Store.State.Playlists.GetValueOrDefault(UserId.ToString("N")) ?? new();
+
+    private List<PlaylistData> PlaylistsOf(YoufinState st)
+    {
+        var k = UserId.ToString("N");
+        if (!st.Playlists.TryGetValue(k, out var l)) { st.Playlists[k] = l = new(); }
+        return l;
+    }
+
+    private IActionResult SetFavorite(string key, bool on)
+    {
+        var k = UserId.ToString("N");
+        _svc.Store.Update(st =>
+        {
+            if (!st.FavoriteChannels.TryGetValue(k, out var set)) { st.FavoriteChannels[k] = set = new(); }
+            if (on) { set.Add(key); } else { set.Remove(key); }
+        });
+        return NoContent();
+    }
 
     /// <param name="filter">Resume, Recent (played, newest first), Favorites; omitted = all.</param>
     [HttpGet("Videos")]
     public ActionResult<Page<VideoDto>> Videos(
         [FromQuery] string? channel, [FromQuery] VideoSort sort = VideoSort.Added, [FromQuery] bool desc = true,
-        [FromQuery] string? filter = null, [FromQuery] int startIndex = 0, [FromQuery] int limit = 50)
+        [FromQuery] string? filter = null, [FromQuery] string? q = null, [FromQuery] string? category = null,
+        [FromQuery] string? playlist = null, [FromQuery] int startIndex = 0, [FromQuery] int limit = 50)
     {
         var index = _svc.Index;
         var user = _users.GetUserById(UserId);
         Page<VideoRecord> p;
-        if (!string.IsNullOrEmpty(filter) && user is not null)
+        if (!string.IsNullOrEmpty(playlist))
         {
-            var q = new InternalItemsQuery(user)
+            var pl = Mine().FirstOrDefault(x => x.Id == playlist);
+            if (pl is null) { return NotFound(); }
+            p = index.ByIds(pl.VideoIds, startIndex, limit);
+        }
+        else if (!string.IsNullOrEmpty(filter) && user is not null)
+        {
+            var iq = new InternalItemsQuery(user)
             {
                 IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Episode, BaseItemKind.MusicVideo, BaseItemKind.Video],
                 Recursive = true,
@@ -61,28 +189,28 @@ public class YoufinController : ControllerBase
             switch (filter.ToLowerInvariant())
             {
                 case "resume":
-                    q.IsResumable = true;
-                    q.OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)];
+                    iq.IsResumable = true;
+                    iq.OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)];
                     break;
                 case "recent":
-                    q.IsPlayed = true;
-                    q.OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)];
+                    iq.IsPlayed = true;
+                    iq.OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)];
                     break;
                 case "favorites":
-                    q.IsFavorite = true;
+                    iq.IsFavorite = true;
                     break;
                 default:
                     return BadRequest("Unknown filter");
             }
 
-            var recs = _library.GetItemList(q).Select(i => index.Get(i.Id)).OfType<VideoRecord>()
+            var recs = _library.GetItemList(iq).Select(i => index.Get(i.Id)).OfType<VideoRecord>()
                 .Where(v => channel is null || v.Channel.Key == channel).ToList();
             start(ref startIndex, ref limit);
             p = new Page<VideoRecord>(recs.Skip(startIndex).Take(limit).ToList(), recs.Count, startIndex);
         }
         else
         {
-            p = index.Videos(channel, sort, desc, startIndex, limit);
+            p = index.Videos(channel, sort, desc, startIndex, limit, q, category);
         }
 
         return new Page<VideoDto>(p.Items.Select(v => ToDto(v, index, user)).ToList(), p.Total, p.StartIndex);
@@ -148,6 +276,12 @@ public class YoufinController : ControllerBase
 }
 
 /// <summary>Slim projection; clients fetch images/playback via standard Jellyfin endpoints using ItemId.</summary>
+public sealed record NameBody(string? Name);
+
+public sealed record MergeBody(string? Into);
+
+public sealed record PlaylistDto(string Id, string Name, int VideoCount);
+
 public sealed record VideoDto(Guid ItemId, string? YouTubeId, string Title, string ChannelKey, string ChannelName, DateTime? Published, DateTime Added, long? RuntimeTicks,
     long? PositionTicks, bool Played, bool IsFavorite)
 {

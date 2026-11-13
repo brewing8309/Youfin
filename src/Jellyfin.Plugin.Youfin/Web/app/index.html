@@ -10,16 +10,21 @@
 <header>
   <button id="menu" aria-label="Menü">☰</button>
   <a class="logo" href="#/">▶ Youfin</a>
+  <form id="sf"><input id="sq" type="search" placeholder="Suchen" autocomplete="off"></form>
   <span class="grow"></span>
   <a class="back" id="tojf" href="/web/">← Jellyfin</a>
 </header>
 <nav id="nav">
   <a href="#/" data-r="home">Startseite</a>
-  <a href="#/channels" data-r="channels">Kanäle</a>
+  <a href="#/mychannels" data-r="mychannels">Meine Kanäle</a>
+  <a href="#/channels" data-r="channels">Alle Kanäle</a>
   <a href="#/videos" data-r="videos">Alle Videos</a>
   <a href="#/new" data-r="new">Neu hinzugefügt</a>
   <a href="#/resume" data-r="resume">Weiter ansehen</a>
   <a href="#/history" data-r="history">Zuletzt angesehen</a>
+  <a href="#/favorites" data-r="favorites">Favoriten</a>
+  <a href="#/playlists" data-r="playlists">Playlists</a>
+  <a href="#/categories" data-r="categories">Kategorien</a>
 </nav>
 <main id="main"></main>
 <script src="app.js"></script>
