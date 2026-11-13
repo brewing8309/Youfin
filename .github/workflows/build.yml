@@ -1,0 +1,18 @@
+name: Build
+on:
+  push:
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test -c Release
+      - run: dotnet build -c Release src/Jellyfin.Plugin.Youfin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Jellyfin.Plugin.Youfin
+          path: src/Jellyfin.Plugin.Youfin/bin/Release/net10.0/Jellyfin.Plugin.Youfin.dll

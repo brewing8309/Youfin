@@ -98,3 +98,23 @@ public class SearchTests
         Assert.Single(i.Channels(null, 0, 10, fav, onlyFavorites: true).Items);
     }
 }
+
+public class PerformanceTests
+{
+    [Fact]
+    public void TwentyThousandVideosStayFast()
+    {
+        var rnd = new Random(1);
+        var vids = Enumerable.Range(0, 20000).Select(i => new VideoRecord(Guid.NewGuid(), "id" + i.ToString("D9"), "Video " + i,
+            "desc " + rnd.Next(), new DateTime(2020, 1, 1).AddHours(i), new DateTime(2025, 1, 1).AddMinutes(i), null, null,
+            new ChannelKey("id:C" + i % 300, "Chan " + i % 300), ["t" + i % 50], ["Cat" + i % 10])).ToList();
+        var idx = new VideoIndex(vids, new Dictionary<string, string>());
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Assert.Equal(300, idx.Channels(null, 0, 50).Total);
+        Assert.Equal(20000, idx.Videos(null, VideoSort.Published, true, 0, 50).Total);
+        Assert.True(idx.Videos(null, VideoSort.Title, false, 0, 50, search: "video 1999").Total > 0);
+        Assert.Equal(10, idx.Categories().Count);
+        Assert.True(sw.ElapsedMilliseconds < 2000, "took " + sw.ElapsedMilliseconds + "ms");
+    }
+}
