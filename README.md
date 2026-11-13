@@ -24,6 +24,8 @@
   <img alt="Youfin Startseite" src="docs/screenshots/home.png" width="860">
 </p>
 
+> 🤖 **100 % vibecoded:** Youfin wurde vollständig mit KI erstellt (Claude Code von Anthropic), von der Idee bis zum Logo. Der Code wurde getestet, aber nicht von Hand geschrieben. Nutzung auf eigene Verantwortung.
+>
 > Die Screenshots zeigen Demo-Daten.
 
 ## Warum Youfin?
