@@ -17,11 +17,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Jellyfin.Plugin.Youfin.Api;
 
-[ApiController]
-[Authorize]
-[Route("Youfin")]
-[Produces("application/json")]
-public class YoufinController : ControllerBase
+public class YoufinController : YoufinApiBase
 {
     private static readonly FileExtensionContentTypeProvider Mime = new();
     private readonly IndexService _svc;
@@ -30,14 +26,13 @@ public class YoufinController : ControllerBase
     private readonly IUserDataManager _userData;
 
     public YoufinController(IndexService svc, ILibraryManager library, IUserManager users, IUserDataManager userData)
+        : base(svc)
     {
         _svc = svc;
         _library = library;
         _users = users;
         _userData = userData;
     }
-
-    private Guid UserId => Guid.TryParse(User.FindFirstValue("Jellyfin-UserId"), out var g) ? g : Guid.Empty;
 
     [HttpGet("Channels")]
     public ActionResult<Page<ChannelSummary>> Channels(
@@ -52,7 +47,7 @@ public class YoufinController : ControllerBase
 
     /// <summary>Rename a channel for display only; empty name removes the alias. Original metadata is untouched.</summary>
     [HttpPut("Channels/{key}/Name")]
-    [Authorize(Policy = "RequiresElevation")]
+    [Authorize(Policy = AdminPolicy)]
     public IActionResult Rename([FromRoute] string key, [FromBody] NameBody body)
     {
         _svc.Store.Update(st =>
@@ -65,7 +60,7 @@ public class YoufinController : ControllerBase
 
     /// <summary>Merge channel <paramref name="key"/> into another channel.</summary>
     [HttpPost("Channels/{key}/Merge")]
-    [Authorize(Policy = "RequiresElevation")]
+    [Authorize(Policy = AdminPolicy)]
     public IActionResult Merge([FromRoute] string key, [FromBody] MergeBody body)
     {
         if (string.IsNullOrWhiteSpace(body.Into) || body.Into == key)
@@ -79,7 +74,7 @@ public class YoufinController : ControllerBase
     }
 
     [HttpDelete("Channels/{key}/Merge")]
-    [Authorize(Policy = "RequiresElevation")]
+    [Authorize(Policy = AdminPolicy)]
     public IActionResult Unmerge([FromRoute] string key)
     {
         _svc.Store.Update(st => st.Channel(key).MergedInto = null);
@@ -90,63 +85,8 @@ public class YoufinController : ControllerBase
     [HttpGet("Categories")]
     public ActionResult<IReadOnlyList<CategorySummary>> Categories() => Ok(_svc.Index.Categories());
 
-    [HttpGet("Playlists")]
-    public ActionResult<IEnumerable<PlaylistDto>> Playlists() =>
-        Ok(Mine().Select(p => new PlaylistDto(p.Id, p.Name, p.VideoKeys.Count)));
-
-    [HttpPost("Playlists")]
-    public ActionResult<PlaylistDto> CreatePlaylist([FromBody] NameBody body)
-    {
-        if (string.IsNullOrWhiteSpace(body.Name))
-        {
-            return BadRequest("Name required");
-        }
-
-        var pl = new CollectionData { Name = body.Name.Trim() };
-        _svc.Store.Update(st => PlaylistsOf(st).Add(pl));
-        return new PlaylistDto(pl.Id, pl.Name, 0);
-    }
-
-    [HttpDelete("Playlists/{id}")]
-    public IActionResult DeletePlaylist([FromRoute] string id)
-    {
-        _svc.Store.Update(st => PlaylistsOf(st).RemoveAll(p => p.Id == id));
-        return NoContent();
-    }
-
-    [HttpPost("Playlists/{id}/Videos/{videoId}")]
-    public IActionResult AddToPlaylist([FromRoute] string id, [FromRoute] Guid videoId)
-    {
-        if (_svc.Index.Get(videoId) is null)
-        {
-            return NotFound();
-        }
-
-        var found = false;
-        _svc.Store.Update(st =>
-        {
-            var pl = PlaylistsOf(st).FirstOrDefault(p => p.Id == id);
-            if (pl is null) { return; }
-            found = true;
-            var vk = _svc.Index.Get(videoId)!.VideoKey;
-            if (!pl.VideoKeys.Contains(vk)) { pl.VideoKeys.Add(vk); }
-        });
-        return found ? NoContent() : NotFound();
-    }
-
-    [HttpDelete("Playlists/{id}/Videos/{videoId}")]
-    public IActionResult RemoveFromPlaylist([FromRoute] string id, [FromRoute] Guid videoId)
-    {
-        _svc.Store.Update(st => PlaylistsOf(st).FirstOrDefault(p => p.Id == id)?.VideoKeys.RemoveAll(k => _svc.Index.GetByKey(k)?.ItemId == videoId));
-        return NoContent();
-    }
-
     private ISet<string> MyFavorites() =>
         _svc.Store.State.Users.GetValueOrDefault(UserId.ToString("N"))?.FavoriteChannels ?? new HashSet<string>();
-
-    private List<CollectionData> Mine() => _svc.Store.State.Users.GetValueOrDefault(UserId.ToString("N"))?.Collections ?? new();
-
-    private List<CollectionData> PlaylistsOf(YoufinState st) => st.User(UserId.ToString("N")).Collections;
 
     private IActionResult SetFavorite(string key, bool on)
     {
@@ -164,14 +104,16 @@ public class YoufinController : ControllerBase
     public ActionResult<Page<VideoDto>> Videos(
         [FromQuery] string? channel, [FromQuery] VideoSort sort = VideoSort.Added, [FromQuery] bool desc = true,
         [FromQuery] string? filter = null, [FromQuery] string? q = null, [FromQuery] string? category = null,
-        [FromQuery] string? playlist = null, [FromQuery] int startIndex = 0, [FromQuery] int limit = 50)
+        [FromQuery] string? playlist = null, [FromQuery] string? collection = null, [FromQuery] string? series = null,
+        [FromQuery] bool? single = null, [FromQuery] int startIndex = 0, [FromQuery] int limit = 50)
     {
         var index = _svc.Index;
         var user = _users.GetUserById(UserId);
         Page<VideoRecord> p;
-        if (!string.IsNullOrEmpty(playlist))
+        collection ??= playlist;
+        if (!string.IsNullOrEmpty(collection))
         {
-            var pl = Mine().FirstOrDefault(x => x.Id == playlist);
+            var pl = FindCollection(collection);
             if (pl is null) { return NotFound(); }
             p = index.ByKeys(pl.VideoKeys, startIndex, limit);
         }
@@ -200,13 +142,14 @@ public class YoufinController : ControllerBase
             }
 
             var recs = _library.GetItemList(iq).Select(i => index.Get(i.Id)).OfType<VideoRecord>()
-                .Where(v => channel is null || v.Channel.Key == channel).ToList();
+                .Where(v => (channel is null || v.Channel.Key == channel) && (series is null || index.SeriesOf(v.ItemId) == series)
+                    && (single is null || index.IsStandalone(v.ItemId) == single)).ToList();
             start(ref startIndex, ref limit);
             p = new Page<VideoRecord>(recs.Skip(startIndex).Take(limit).ToList(), recs.Count, startIndex);
         }
         else
         {
-            p = index.Videos(channel, sort, desc, startIndex, limit, q, category);
+            p = index.Videos(channel, sort, desc, startIndex, limit, q, category, series, single);
         }
 
         return new Page<VideoDto>(p.Items.Select(v => ToDto(v, index, user)).ToList(), p.Total, p.StartIndex);
@@ -242,7 +185,8 @@ public class YoufinController : ControllerBase
             }
         }
 
-        return VideoDto.From(v, index.ChannelName(v.Channel.Key), pos, played, fav);
+        var sid = index.SeriesOf(v.ItemId);
+        return VideoDto.From(v, index.ChannelName(v.Channel.Key), pos, played, fav, sid, sid is null ? null : index.GetSeries(sid)?.Name);
     }
 
     /// <summary>Serves the embedded web UI (static files only; data calls are authorized).</summary>
@@ -263,7 +207,7 @@ public class YoufinController : ControllerBase
     }
 
     [HttpPost("Rebuild")]
-    [Authorize(Policy = "RequiresElevation")]
+    [Authorize(Policy = AdminPolicy)]
     public IActionResult Rebuild()
     {
         _svc.Rebuild();
@@ -276,11 +220,11 @@ public sealed record NameBody(string? Name);
 
 public sealed record MergeBody(string? Into);
 
-public sealed record PlaylistDto(string Id, string Name, int VideoCount);
+public sealed record PlaylistDto(string Id, string Name, int VideoCount, string Kind = "normal");
 
 public sealed record VideoDto(Guid ItemId, string? YouTubeId, string Title, string ChannelKey, string ChannelName, DateTime? Published, DateTime Added, long? RuntimeTicks,
-    long? PositionTicks, bool Played, bool IsFavorite)
+    long? PositionTicks, bool Played, bool IsFavorite, string? SeriesId, string? SeriesName)
 {
-    public static VideoDto From(VideoRecord v, string channelName, long? pos, bool played, bool fav) =>
-        new(v.ItemId, v.YouTubeId, v.Title, v.Channel.Key, channelName, v.Published, v.Added, v.RuntimeTicks, pos, played, fav);
+    public static VideoDto From(VideoRecord v, string channelName, long? pos, bool played, bool fav, string? seriesId, string? seriesName) =>
+        new(v.ItemId, v.YouTubeId, v.Title, v.Channel.Key, channelName, v.Published, v.Added, v.RuntimeTicks, pos, played, fav, seriesId, seriesName);
 }
