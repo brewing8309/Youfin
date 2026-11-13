@@ -17,6 +17,7 @@
   <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-ffb547">
   <img alt="Jellyfin 12.4" src="https://img.shields.io/badge/Jellyfin-12.4-00a4dc?logo=jellyfin&logoColor=white">
   <img alt=".NET 10" src="https://img.shields.io/badge/.NET-10-512bd4?logo=dotnet&logoColor=white">
+  <a href="LICENSE"><img alt="Lizenz: PolyForm Noncommercial" src="https://img.shields.io/badge/Lizenz-PolyForm%20Noncommercial-lightgrey"></a>
 </p>
 
 <p align="center">
@@ -139,4 +140,11 @@ Das Plugin ist in C# (.NET 10) gegen `Jellyfin.Controller` 12.4 geschrieben, die
 
 ## Lizenz
 
-Eine Lizenz ist noch nicht festgelegt.
+[PolyForm Noncommercial 1.0.0](LICENSE): Nutzen, ändern und weitergeben ist erlaubt, **aber nicht, um damit Geld zu verdienen**.
+
+Zusätzlich ist in der [LICENSE](LICENSE) als „Required Notice“ festgehalten, was bei jeder Nutzung, Kopie oder Weitergabe (auch von Teilen) mitgegeben werden muss:
+
+- der Hinweis, dass Youfin **mit KI erstellt** wurde (Claude Code von Anthropic),
+- der **Verweis auf dieses Repository**: <https://github.com/brewing8309/Youfin>
+
+> Youfin ist damit „source-available“, aber keine Open-Source-Lizenz im Sinne der OSI.
