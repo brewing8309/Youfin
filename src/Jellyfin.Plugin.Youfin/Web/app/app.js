@@ -407,12 +407,22 @@
     setSel(false);
     var h = (location.hash || '#/').slice(2).split('/'), name = h[0] || 'home', arg = h[1] ? decodeURIComponent(h[1]) : null;
     if (name === 'playlists') name = 'collections'; else if (name === 'playlist') name = 'collection';
-    document.querySelectorAll('nav a').forEach(function (a) { a.classList.toggle('on', a.dataset.r.split(',').indexOf(name) >= 0); });
+    document.querySelectorAll('nav a').forEach(function (a) { a.classList.toggle('on', (a.dataset.r || '').split(',').indexOf(name) >= 0); });
     document.body.classList.remove('shownav');
     if (!C) { main.innerHTML = '<div class="empty">' + esc(tr('login.required', { link: '\u0000' })).replace('\u0000', '<a href="' + BASE + '/web/"><u>Jellyfin</u></a>') + '</div>'; return; }
     (routes[name] || routes.home)(arg);
     window.scrollTo(0, 0);
   }
+  // Appropriate Legal Notices (GPL-3.0 section 5d / NOTICE): copyright, AI statement, link to the original project, license, no warranty
+  function showAbout() {
+    var m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = '<div class="box"><h3>' + esc(tr('about.title')) + '</h3><p>' + esc(tr('about.copyright')) + '</p><p>' + esc(tr('about.created')) + '</p>' +
+      '<p><a href="https://github.com/brewing8309/Youfin" target="_blank" rel="noopener">' + esc(tr('about.source')) + '</a></p><p>' + esc(tr('about.license')) + '</p><p>' + esc(tr('about.warranty')) + '</p>' +
+      '<button class="btn" id="aboutclose">' + esc(tr('about.close')) + '</button></div>';
+    m.onclick = function (e) { if (e.target === m || e.target.id === 'aboutclose') m.remove(); };
+    document.body.appendChild(m);
+  }
+  $('aboutlink').onclick = function (e) { e.preventDefault(); showAbout(); };
   $('sf').onsubmit = function (e) { e.preventDefault(); var text = $('sq').value.trim(); if (text) location.hash = '#/search/' + encodeURIComponent(text); };
   $('menu').onclick = function () { document.body.classList.toggle(window.innerWidth > 900 ? 'nonav' : 'shownav'); };
   window.addEventListener('hashchange', route);

@@ -161,5 +161,13 @@
  "cfg.syncSeries": "Create a Jellyfin collection per series (for FireTV, Swiftfin, Infuse)",
  "cfg.syncChannels": "Also create a collection per channel (2 or more videos)",
  "cfg.hint": "Runs through the scheduled task “Youfin: Sync series collections” (daily or manually).",
- "cfg.save": "Save"
+ "cfg.save": "Save",
+ "about.link": "About & license",
+ "about.title": "About Youfin",
+ "about.created": "Created with AI (Claude Code by Anthropic).",
+ "about.copyright": "Copyright © 2026 brewing8309",
+ "about.source": "Source code and original project",
+ "about.license": "Licensed under the GNU GPL v3 with additional terms (see NOTICE).",
+ "about.warranty": "This program comes with ABSOLUTELY NO WARRANTY.",
+ "about.close": "Close"
 }

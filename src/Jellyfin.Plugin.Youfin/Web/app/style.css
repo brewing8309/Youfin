@@ -58,3 +58,4 @@ body.selmode .kebab{display:none}
 .ord{display:flex;gap:8px;align-items:center}.ord .card{flex:1}.ordbtn{display:flex;flex-direction:column;gap:6px}
 .sub{color:var(--dim);margin:4px 0 12px}
 #lang{background:var(--panel);color:var(--text);border:0;border-radius:8px;padding:6px 8px;margin-right:12px;font:inherit}
+nav a.about{margin-top:18px;color:var(--dim);font-size:13px}.box a{color:var(--hi)}.box p{margin:2px 0;color:#ccc}

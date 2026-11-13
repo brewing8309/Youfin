@@ -17,7 +17,7 @@
   <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-ffb547">
   <img alt="Jellyfin 12.4" src="https://img.shields.io/badge/Jellyfin-12.4-00a4dc?logo=jellyfin&logoColor=white">
   <img alt=".NET 10" src="https://img.shields.io/badge/.NET-10-512bd4?logo=dotnet&logoColor=white">
-  <a href="LICENSE"><img alt="License: PolyForm Noncommercial" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-lightgrey"></a>
+  <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-blue"></a>
 </p>
 
 <p align="center">
@@ -153,11 +153,10 @@ The plugin is written in C# (.NET 10) against `Jellyfin.Controller` 12.4. The in
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE): you may use, modify and share it, **but not to make money with it**.
+[GNU GPL v3](LICENSE) (GPL-3.0-only, the same license as the Jellyfin libraries Youfin builds on) with additional terms under section 7, see [NOTICE](NOTICE):
 
-In addition, the [LICENSE](LICENSE) contains "Required Notice" lines that must accompany every use, copy or distribution (including parts):
+- keep the copyright notice and the statement that Youfin was **created with AI** (Claude Code by Anthropic) in the source and in the "About" screen of works based on it,
+- keep the **reference to this repository**: <https://github.com/brewing8309/Youfin>,
+- mark modified versions as different from the original.
 
-- the statement that Youfin was **created with AI** (Claude Code by Anthropic),
-- the **link to this repository**: <https://github.com/brewing8309/Youfin>
-
-> This makes Youfin source-available, but not open source in the OSI sense.
+Commercial use is allowed under the terms of the GPL (for example, the source code must be provided under the same license).

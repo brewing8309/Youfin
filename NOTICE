@@ -1,0 +1,24 @@
+Youfin
+Copyright (c) 2026 brewing8309 (https://github.com/brewing8309/Youfin)
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License, version 3 only (see the file LICENSE), with the additional terms below.
+It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+ADDITIONAL TERMS under section 7 of the GNU GPL version 3
+
+(b) Preservation of notices and attributions. You must preserve this NOTICE (or its full content) in the
+    source code of every copy and every work based on Youfin, and you must keep the following statements in
+    the Appropriate Legal Notices that a work based on Youfin displays (for example an "About" screen):
+      - "Created with AI (Claude Code by Anthropic)."
+      - the reference to the original project: https://github.com/brewing8309/Youfin
+
+(c) Marking of modified versions. Modified versions must be marked in a reasonable way as different from
+    the original version, and must not be presented as the original Youfin or as made by its author.
+
+These are additional terms in the sense of section 7 of the GNU GPL version 3. They are not further restrictions
+on use: in particular, commercial use is allowed under the conditions of the GNU GPL version 3 (for example
+providing the source code under the same license).
+
+Youfin is an independent community project. It is not affiliated with YouTube, Google or the Jellyfin project.
