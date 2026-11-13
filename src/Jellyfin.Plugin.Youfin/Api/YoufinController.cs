@@ -161,6 +161,46 @@ public class YoufinController : YoufinApiBase
         }
     }
 
+    /// <summary>Next unplayed episode of every series the user has already started (at least one episode played).</summary>
+    [HttpGet("NextUp")]
+    public ActionResult<IEnumerable<VideoDto>> NextUp([FromQuery] int limit = 12)
+    {
+        var index = _svc.Index;
+        var user = _users.GetUserById(UserId);
+        if (user is null)
+        {
+            return Ok(Array.Empty<VideoDto>());
+        }
+
+        var result = new List<(DateTime? Last, VideoRecord Next)>();
+        foreach (var s in index.SeriesList(null, 0, 200).Items)
+        {
+            DateTime? last = null;
+            VideoRecord? next = null;
+            var played = 0;
+            foreach (var v in index.OrderedSeries(s.Id))
+            {
+                var d = _library.GetItemById(v.ItemId) is { } item ? _userData.GetUserData(user, item) : null;
+                if (d?.Played == true)
+                {
+                    played++;
+                    if (d.LastPlayedDate > last) { last = d.LastPlayedDate; }
+                }
+                else if (next is null)
+                {
+                    next = v;
+                }
+            }
+
+            if (played > 0 && next is not null)
+            {
+                result.Add((last, next));
+            }
+        }
+
+        return Ok(result.OrderByDescending(r => r.Last).Take(Math.Clamp(limit, 1, 50)).Select(r => ToDto(r.Next, index, user)).ToList());
+    }
+
     [HttpGet("Videos/{id}")]
     public ActionResult<VideoDto> Video([FromRoute] Guid id)
     {

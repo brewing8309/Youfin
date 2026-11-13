@@ -85,3 +85,6 @@ build.yaml, .github/workflows (Build, Release, manifest.json)
 - **Kategorien:** aus `categories` der info.json (`GET /Youfin/Categories`, `?category=`). Manuelle Zuordnung geschieht über Playlists.
 - **Playlists:** pro Nutzer (`/Youfin/Playlists`), Reihenfolge = Einfüge-Reihenfolge.
 - **Apps (FireTV/Swiftfin/Infuse):** geplante Aufgabe "Youfin: Kanal-Collections synchronisieren" legt pro Kanal (ab 2 Videos) eine BoxSet-Collection an, fügt nur hinzu und löscht nie. In den Plugin-Einstellungen aktivieren (standardmäßig aus).
+
+## Organisation (Serien, Einzelvideos, Sammlungen)
+Siehe `docs/ORGANISATION.md`. Kern: Index = gescannte Rohdaten + Overlay (Merges, Aliase, Serien, Overrides); Zustandsänderungen brauchen keinen Neuscan.

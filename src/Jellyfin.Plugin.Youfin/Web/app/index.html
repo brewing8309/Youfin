@@ -15,18 +15,25 @@
   <a class="back" id="tojf" href="/web/">← Jellyfin</a>
 </header>
 <nav id="nav">
+  <h4>Entdecken</h4>
   <a href="#/" data-r="home">Startseite</a>
-  <a href="#/mychannels" data-r="mychannels">Meine Kanäle</a>
-  <a href="#/channels" data-r="channels">Alle Kanäle</a>
-  <a href="#/videos" data-r="videos">Alle Videos</a>
   <a href="#/new" data-r="new">Neu hinzugefügt</a>
+  <a href="#/videos" data-r="videos">Alle Videos</a>
+  <h4>Bibliothek</h4>
+  <a href="#/series" data-r="series,serie">Serien</a>
+  <a href="#/single" data-r="single">Einzelvideos</a>
+  <a href="#/channels" data-r="channels,mychannels,channel">Kanäle</a>
+  <a href="#/collections" data-r="collections,collection">Sammlungen</a>
+  <a href="#/categories" data-r="categories,category">Kategorien</a>
+  <h4>Meins</h4>
   <a href="#/resume" data-r="resume">Weiter ansehen</a>
-  <a href="#/history" data-r="history">Zuletzt angesehen</a>
+  <a href="#/watchlater" data-r="watchlater">Später ansehen</a>
   <a href="#/favorites" data-r="favorites">Favoriten</a>
-  <a href="#/playlists" data-r="playlists">Playlists</a>
-  <a href="#/categories" data-r="categories">Kategorien</a>
+  <a href="#/history" data-r="history">Verlauf</a>
 </nav>
 <main id="main"></main>
+<div id="selbar" hidden><span id="selcount"></span><button class="btn pri" id="selact">Aktion…</button><button class="btn" id="seldone">Fertig</button></div>
+<div id="toast" hidden></div>
 <script src="app.js"></script>
 </body>
 </html>

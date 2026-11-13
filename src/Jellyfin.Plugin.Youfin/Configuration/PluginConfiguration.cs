@@ -4,6 +4,9 @@ namespace Jellyfin.Plugin.Youfin.Configuration;
 
 public class PluginConfiguration : BasePluginConfiguration
 {
-    /// <summary>Create/maintain Jellyfin collections per channel for native apps.</summary>
+    /// <summary>Mirror Youfin series as Jellyfin collections (BoxSets) so native apps can browse them.</summary>
     public bool SyncCollections { get; set; }
+
+    /// <summary>Additionally mirror every channel with at least 2 videos as a collection.</summary>
+    public bool SyncChannelCollections { get; set; }
 }

@@ -13,8 +13,8 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.Youfin.Services;
 
 /// <summary>
-/// Mirrors channels as Jellyfin collections (BoxSets) so native apps (FireTV, Swiftfin, Infuse) can browse by channel.
-/// Off by default (Plugin setting SyncCollections). Only adds videos; never removes collections or items.
+/// Mirrors Youfin series (and optionally channels) as Jellyfin collections (BoxSets) so native apps (FireTV, Swiftfin, Infuse)
+/// can browse them. Off by default (Plugin setting SyncCollections). Never deletes collections or library items.
 /// </summary>
 public sealed class CollectionSyncTask : IScheduledTask
 {
@@ -34,11 +34,11 @@ public sealed class CollectionSyncTask : IScheduledTask
         _log = log;
     }
 
-    public string Name => "Youfin: Kanal-Collections synchronisieren";
+    public string Name => "Youfin: Serien-Collections synchronisieren";
 
     public string Key => "YoufinCollectionSync";
 
-    public string Description => "Legt pro YouTube-Kanal eine Collection an (für Apps ohne Plugin-Oberfläche). Nur aktiv, wenn in den Plugin-Einstellungen aktiviert.";
+    public string Description => "Legt pro Youfin-Serie eine Collection an (für Apps ohne Plugin-Oberfläche). Nur aktiv, wenn in den Plugin-Einstellungen aktiviert.";
 
     public string Category => "Youfin";
 
@@ -47,7 +47,8 @@ public sealed class CollectionSyncTask : IScheduledTask
 
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        if (Plugin.Instance?.Configuration.SyncCollections != true)
+        var cfg = Plugin.Instance?.Configuration;
+        if (cfg?.SyncCollections != true)
         {
             _log.LogInformation("Youfin: collection sync disabled");
             return;
@@ -55,19 +56,33 @@ public sealed class CollectionSyncTask : IScheduledTask
 
         _index.Rebuild();
         var index = _index.Index;
+
+        // Desired state: key -> (name, video ids). Series always; channels only when enabled.
+        var targets = new List<(string Key, string Name, List<Guid> Ids)>();
+        foreach (var s in index.SeriesList(null, 0, int.MaxValue).Items)
+        {
+            targets.Add(("series:" + s.Id, s.Name, index.OrderedSeries(s.Id).Select(v => v.ItemId).ToList()));
+        }
+
+        if (cfg.SyncChannelCollections)
+        {
+            foreach (var c in index.Channels(null, 0, int.MaxValue).Items.Where(c => c.VideoCount >= MinVideos))
+            {
+                targets.Add((c.Key, c.Name, index.Videos(c.Key, Core.VideoSort.Published, false, 0, int.MaxValue).Items.Select(v => v.ItemId).ToList()));
+            }
+        }
+
         var existing = _library.GetItemList(new InternalItemsQuery { IncludeItemTypes = [BaseItemKind.BoxSet], Recursive = true })
             .Where(c => c.ProviderIds.ContainsKey(ProviderKey))
             .ToDictionary(c => c.ProviderIds[ProviderKey], c => c);
 
-        var channels = index.Channels(null, 0, int.MaxValue).Items.Where(c => c.VideoCount >= MinVideos).ToList();
         var done = 0;
-        foreach (var ch in channels)
+        foreach (var (key, name, ids) in targets)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var ids = index.Videos(ch.Key, Core.VideoSort.Published, false, 0, 200).Items.Select(v => v.ItemId).ToList();
-                if (existing.TryGetValue(ch.Key, out var box))
+                if (existing.TryGetValue(key, out var box))
                 {
                     var have = ((MediaBrowser.Controller.Entities.Movies.BoxSet)box).GetLinkedChildren().Select(i => i.Id).ToHashSet();
                     var missing = ids.Where(i => !have.Contains(i)).ToList();
@@ -75,25 +90,51 @@ public sealed class CollectionSyncTask : IScheduledTask
                     {
                         await _collections.AddToCollectionAsync(box.Id, missing).ConfigureAwait(false);
                     }
+
+                    // Only videos Youfin knows about are removed; anything a user added by hand stays.
+                    var wanted = ids.ToHashSet();
+                    var extra = have.Where(i => !wanted.Contains(i) && index.Get(i) is not null).ToList();
+                    if (extra.Count > 0)
+                    {
+                        await _collections.RemoveFromCollectionAsync(box.Id, extra).ConfigureAwait(false);
+                    }
                 }
-                else
+                else if (ids.Count > 0)
                 {
                     await _collections.CreateCollectionAsync(new CollectionCreationOptions
                     {
-                        Name = ch.Name,
+                        Name = name,
                         ItemIdList = ids.Select(i => i.ToString("N")).ToList(),
-                        ProviderIds = new Dictionary<string, string> { [ProviderKey] = ch.Key },
+                        ProviderIds = new Dictionary<string, string> { [ProviderKey] = key },
                     }).ConfigureAwait(false);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _log.LogWarning(ex, "Youfin: collection sync failed for channel {Channel}", ch.Name);
+                _log.LogWarning(ex, "Youfin: collection sync failed for {Name}", name);
             }
 
-            progress.Report(100.0 * ++done / channels.Count);
+            progress.Report(100.0 * ++done / Math.Max(1, targets.Count));
         }
 
-        _log.LogInformation("Youfin: synced {Count} channel collections", channels.Count);
+        // Series that no longer exist: empty their (Youfin-owned) collections; the empty shell is left for the user to delete.
+        var liveKeys = targets.Select(t => t.Key).ToHashSet();
+        foreach (var (key, box) in existing.Where(e => e.Key.StartsWith("series:", StringComparison.Ordinal) && !liveKeys.Contains(e.Key)))
+        {
+            try
+            {
+                var stale = ((MediaBrowser.Controller.Entities.Movies.BoxSet)box).GetLinkedChildren().Select(i => i.Id).Where(i => index.Get(i) is not null).ToList();
+                if (stale.Count > 0)
+                {
+                    await _collections.RemoveFromCollectionAsync(box.Id, stale).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogWarning(ex, "Youfin: could not empty stale collection {Key}", key);
+            }
+        }
+
+        _log.LogInformation("Youfin: synced {Count} collections", targets.Count);
     }
 }

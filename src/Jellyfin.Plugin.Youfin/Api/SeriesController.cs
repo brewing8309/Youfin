@@ -47,6 +47,11 @@ public class SeriesController : YoufinApiBase
             return BadRequest("Unknown sort");
         }
 
+        if (body.AutoChannelKey is not null && Svc.Store.State.Series.Values.Any(x => x.AutoChannelKey == body.AutoChannelKey))
+        {
+            return Conflict("This channel already has a series");
+        }
+
         var id = Guid.NewGuid().ToString("N");
         Svc.Store.Update(st =>
         {

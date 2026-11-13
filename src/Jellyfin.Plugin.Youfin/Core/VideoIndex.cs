@@ -139,7 +139,7 @@ public sealed class VideoIndex
         {
             var vids = _bySeries[s.Key].ToList();
             return new SeriesSummary(s.Key, s.Value.Name, vids.Count, vids.Max(v => v.Published),
-                OrderedSeries(s.Key).FirstOrDefault()?.ItemId, s.Value.AutoChannelKey);
+                OrderedSeries(s.Key).FirstOrDefault()?.ItemId, s.Value.AutoChannelKey, s.Value.Sort);
         });
         if (!string.IsNullOrWhiteSpace(search))
         {

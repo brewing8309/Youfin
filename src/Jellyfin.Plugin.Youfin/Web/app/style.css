@@ -40,3 +40,20 @@ h2{margin:24px 0 12px;font-size:20px}h2:first-child{margin-top:0}
 .chan .star{color:#fc0}.card .rm{margin-top:4px}
 .tags{display:flex;gap:8px;flex-wrap:wrap}.tags a{background:var(--panel);border-radius:16px;padding:8px 14px}
 .grid.chans{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+nav h4{margin:14px 12px 4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);font-weight:600}
+.card{position:relative}
+.kebab{position:absolute;top:6px;right:6px;width:30px;height:30px;border:0;border-radius:50%;background:#000a;color:#fff;font-size:18px;cursor:pointer;opacity:0;transition:opacity .15s}
+.card:hover .kebab,.kebab:focus{opacity:1}
+@media(hover:none){.kebab{opacity:1}}
+body.selmode .kebab{display:none}
+.card.picked .thumb{outline:3px solid var(--hi)}
+.badge{display:inline-block;background:var(--panel);border-radius:10px;padding:1px 8px;font-size:12px;color:var(--dim);margin-right:6px}
+.modal{position:fixed;inset:0;background:#000a;z-index:30;display:flex;align-items:center;justify-content:center}
+.box{background:var(--panel);border-radius:14px;padding:16px;min-width:280px;max-width:90vw;max-height:80vh;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.box h3{margin:0 0 6px}.box .btn{background:#333;text-align:left;border-radius:10px}.box .btn:hover{background:#444}
+#selbar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);padding:10px 24px;display:flex;gap:12px;align-items:center;z-index:20;justify-content:flex-end}
+#selbar[hidden],#toast[hidden]{display:none}
+#toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#333;padding:10px 18px;border-radius:20px;z-index:40}
+.chips{display:flex;gap:8px;margin-bottom:14px}.chips a{background:var(--panel);border-radius:16px;padding:6px 14px}.chips a.on{background:var(--text);color:#000}
+.ord{display:flex;gap:8px;align-items:center}.ord .card{flex:1}.ordbtn{display:flex;flex-direction:column;gap:6px}
+.sub{color:var(--dim);margin:4px 0 12px}

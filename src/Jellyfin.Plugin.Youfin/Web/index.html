@@ -10,9 +10,13 @@
       <form id="YoufinForm">
         <label class="checkboxContainer">
           <input is="emby-checkbox" type="checkbox" id="SyncCollections">
-          <span>Pro Kanal eine Jellyfin-Collection anlegen (für FireTV, Swiftfin, Infuse)</span>
+          <span>Pro Serie eine Jellyfin-Collection anlegen (für FireTV, Swiftfin, Infuse)</span>
         </label>
-        <div class="fieldDescription">Läuft über die geplante Aufgabe "Youfin: Kanal-Collections synchronisieren" (täglich oder manuell).</div>
+        <label class="checkboxContainer">
+          <input is="emby-checkbox" type="checkbox" id="SyncChannelCollections">
+          <span>Zusätzlich pro Kanal (ab 2 Videos) eine Collection anlegen</span>
+        </label>
+        <div class="fieldDescription">Läuft über die geplante Aufgabe "Youfin: Serien-Collections synchronisieren" (täglich oder manuell).</div>
         <br>
         <button is="emby-button" type="submit" class="raised button-submit block"><span>Speichern</span></button>
       </form>
@@ -26,6 +30,7 @@
         Dashboard.showLoadingMsg();
         ApiClient.getPluginConfiguration(id).then(function (c) {
           page.querySelector('#SyncCollections').checked = !!c.SyncCollections;
+          page.querySelector('#SyncChannelCollections').checked = !!c.SyncChannelCollections;
           Dashboard.hideLoadingMsg();
         });
       });
@@ -34,6 +39,7 @@
         Dashboard.showLoadingMsg();
         ApiClient.getPluginConfiguration(id).then(function (c) {
           c.SyncCollections = page.querySelector('#SyncCollections').checked;
+          c.SyncChannelCollections = page.querySelector('#SyncChannelCollections').checked;
           ApiClient.updatePluginConfiguration(id, c).then(Dashboard.processPluginConfigurationUpdateResult);
         });
       });
