@@ -72,3 +72,9 @@ build.yaml, .github/workflows (Build, Release, manifest.json)
 - `dotnet test` (Parser, Resolver, Merge, Pagination).
 - Test-Jellyfin 12.4 mit Beispielsammlung: Plugin installieren, Scan, API per curl, SPA im Browser (Playwright), Collections in Swiftfin/FireTV sichtbar.
 - Keine Container-Neustarts auf dem Homelab ohne Rückfrage.
+
+## Entscheidungen / Verifikation (Stand Phase 3)
+- **Persistenz:** JSON-Datei (`state.json`, atomar geschrieben) statt SQLite: wenig Daten (Merges, Aliase, Favoriten), keine zusätzliche Abhängigkeit im Plugin.
+- **UI-Auslieferung:** Plugin liefert die SPA als eingebettete Ressourcen unter `/Youfin/Web/` (anonym nur statische Dateien, alle Daten-Endpunkte erfordern Login). Token kommt aus `localStorage.jellyfin_credentials` (gleiche Origin).
+- **Verifiziert (Jellyfin 12.4):** Scan, API, Auth (401 ohne Login), Resume/Recent/Favorites über `InternalItemsQuery`, Deep-Link `/web/#/details?id=<id>` öffnet die native Detailseite, `menuLinks` in `jellyfin-web/config.json` (`{name, icon, url}`) zeigt Links in der Seitenleiste für alle Nutzer.
+- **Nicht möglich/ungeprüft:** Autoplay per Deep-Link (Detailseite mit Abspielen-Button als Fallback). Playlists, Kategorien, Suche, Kanal-Favoriten: Phase 4.
