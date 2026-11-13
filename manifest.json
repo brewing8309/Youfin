@@ -1,0 +1,20 @@
+[
+  {
+    "guid": "6b1f3c5e-8a47-4d2b-9c0e-3f5a7d9e1b24",
+    "name": "Youfin",
+    "description": "Offline-YouTube-Oberfläche für lokal gespeicherte YouTube-Videos: Kanäle, Serien, Einzelvideos, Sammlungen.",
+    "overview": "Persönliche Offline-YouTube-Bibliothek in Jellyfin",
+    "owner": "brewing8309",
+    "category": "General",
+    "versions": [
+      {
+        "version": "0.1.0.0",
+        "changelog": "Erste Version: YouTube-ähnliche Weboberfläche, Kanäle, Serien, Einzelvideos, Sammlungen, Suche, Collection-Sync für Apps.",
+        "targetAbi": "12.4.0.0",
+        "sourceUrl": "https://github.com/brewing8309/Youfin/releases/download/v0.1.0/youfin_0.1.0.0.zip",
+        "checksum": "9eb4845765b76e2678744d3229f471ab",
+        "timestamp": "2026-11-13T20:11:32Z"
+      }
+    ]
+  }
+]
