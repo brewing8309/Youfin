@@ -405,6 +405,7 @@
   }
   function route() {
     setSel(false);
+    document.querySelectorAll('.modal').forEach(function (m) { m.remove(); });   // close open dialogs on navigation
     var h = (location.hash || '#/').slice(2).split('/'), name = h[0] || 'home', arg = h[1] ? decodeURIComponent(h[1]) : null;
     if (name === 'playlists') name = 'collections'; else if (name === 'playlist') name = 'collection';
     document.querySelectorAll('nav a').forEach(function (a) { a.classList.toggle('on', (a.dataset.r || '').split(',').indexOf(name) >= 0); });

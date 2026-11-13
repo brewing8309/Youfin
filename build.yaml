@@ -1,6 +1,6 @@
 name: "Youfin"
 guid: "6b1f3c5e-8a47-4d2b-9c0e-3f5a7d9e1b24"
-version: "0.1.0.0"
+version: "0.1.1.0"
 targetAbi: "12.4.0.0"
 framework: "net10.0"
 owner: "brewing8309"
