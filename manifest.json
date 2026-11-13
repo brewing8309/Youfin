@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/brewing8309/Youfin/main/assets/icon-512.png",
     "versions": [
       {
+        "version": "0.1.1.0",
+        "changelog": "See https://github.com/brewing8309/Youfin/releases/tag/v0.1.1",
+        "targetAbi": "12.4.0.0",
+        "sourceUrl": "https://github.com/brewing8309/Youfin/releases/download/v0.1.1/youfin_0.1.1.0.zip",
+        "checksum": "188C0F70419DECDFE056446170714137",
+        "timestamp": "2026-11-13T20:57:01Z"
+      },
+      {
         "version": "0.1.0.0",
         "changelog": "First version: YouTube-like web interface, channels, series, standalone videos, collections, search, collection sync for apps.",
         "targetAbi": "12.4.0.0",
