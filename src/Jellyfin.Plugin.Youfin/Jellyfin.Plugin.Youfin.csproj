@@ -13,5 +13,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Web\**\*" />
+    <!-- Brand assets live once in /assets and are served by the web UI -->
+    <EmbeddedResource Include="..\..\assets\icon.svg" LogicalName="Jellyfin.Plugin.Youfin.Web.app.icon.svg" />
+    <EmbeddedResource Include="..\..\assets\icon-180.png" LogicalName="Jellyfin.Plugin.Youfin.Web.app.icon-180.png" />
+    <EmbeddedResource Include="..\..\assets\logo-dark.svg" LogicalName="Jellyfin.Plugin.Youfin.Web.app.logo-dark.svg" />
   </ItemGroup>
 </Project>

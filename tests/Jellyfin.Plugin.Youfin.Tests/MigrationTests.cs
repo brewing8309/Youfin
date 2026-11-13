@@ -102,3 +102,21 @@ public class VideoKeyTests
         Assert.Equal([b.ItemId, a.ItemId], p.Items.Select(v => v.ItemId));
     }
 }
+
+public class WebResourceTests
+{
+    [Theory]
+    [InlineData("index.html")]
+    [InlineData("app.js")]
+    [InlineData("style.css")]
+    [InlineData("icon.svg")]
+    [InlineData("icon-180.png")]
+    [InlineData("logo-dark.svg")]
+    public void WebUiFilesAreEmbedded(string file)
+    {
+        var name = "Jellyfin.Plugin.Youfin.Web.app." + file;
+        using var s = typeof(Jellyfin.Plugin.Youfin.Core.YouTubeIdParser).Assembly.GetManifestResourceStream(name);
+        Assert.NotNull(s);
+        Assert.True(s!.Length > 100);
+    }
+}

@@ -6,6 +6,7 @@
     "overview": "Persönliche Offline-YouTube-Bibliothek in Jellyfin",
     "owner": "brewing8309",
     "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/brewing8309/Youfin/main/assets/icon-512.png",
     "versions": [
       {
         "version": "0.1.0.0",

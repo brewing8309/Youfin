@@ -135,7 +135,7 @@
     function next() {
       load(start).then(function (p) {
         if (!start && !p.Items.length) { el.innerHTML = '<div class="empty">' + (emptyMsg || 'Keine Einträge.') + '</div>'; return; }
-        grid.insertAdjacentHTML('beforeend', p.Items.map(render).join(''));
+        grid.insertAdjacentHTML('beforeend', p.Items.map(function (v) { return render(v); }).join(''));
         start += p.Items.length; more.style.display = start < p.Total ? '' : 'none';
       }).catch(fail);
     }
@@ -315,7 +315,7 @@
           '<button class="btn" id="played">' + (it.UserData && it.UserData.Played ? '✓ Gesehen' : 'Als gesehen markieren') + '</button>' +
           '<button class="btn" id="fav">' + (it.UserData && it.UserData.IsFavorite ? '★ Favorit' : '☆ Favorit') + '</button><button class="btn" id="more" data-menu="' + id + '">⋯ Mehr</button></div>' +
           '<div class="desc clamp" id="desc">' + esc(it.Overview || 'Keine Beschreibung.') + '</div><button class="btn" id="tog" style="margin-top:8px">Mehr anzeigen</button></div>' +
-          '<div><h2>' + (sid ? 'Weitere Folgen' : 'Weitere Videos dieses Kanals') + '</h2><div class="grid list" id="rel"></div></div></div>';
+          '<div><h2 id="relh">' + (sid ? 'Weitere Folgen' : 'Weitere Videos dieses Kanals') + '</h2><div class="grid list" id="rel"></div></div></div>';
         $('tog').onclick = function () { var d = $('desc'); d.classList.toggle('clamp'); this.textContent = d.classList.contains('clamp') ? 'Mehr anzeigen' : 'Weniger anzeigen'; };
         var played = !!(it.UserData && it.UserData.Played), fav = !!(it.UserData && it.UserData.IsFavorite);
         $('played').onclick = function () { var b = this; api('/Users/' + C.uid + '/PlayedItems/' + id, { method: played ? 'DELETE' : 'POST' }).then(function () { played = !played; b.textContent = played ? '✓ Gesehen' : 'Als gesehen markieren'; }); };
@@ -327,7 +327,13 @@
           $('prev').disabled = !pv; $('next').disabled = !nx;
           if (pv) $('prev').onclick = function () { location.hash = '#/video/' + pv.ItemId; };
           if (nx) $('next').onclick = function () { location.hash = '#/video/' + nx.ItemId; };
-          $('rel').innerHTML = p.Items.filter(function (x) { return x.ItemId !== id; }).slice(0, 12).map(function (v) { return card(v); }).join('');
+          var rel = p.Items.filter(function (x) { return x.ItemId !== id; }).slice(0, 12);
+          if (rel.length || sid) { $('rel').innerHTML = rel.map(function (v) { return card(v); }).join(''); return; }
+          // nothing else from this channel: suggest other standalone videos instead of an empty column
+          $('relh').textContent = 'Weitere Einzelvideos';
+          return api('/Youfin/Videos?single=true&sort=Added&limit=13').then(function (o) {
+            $('rel').innerHTML = o.Items.filter(function (x) { return x.ItemId !== id; }).slice(0, 12).map(function (v) { return card(v); }).join('');
+          });
         });
       }
     }
