@@ -38,10 +38,11 @@ public class IndexTests
     public void StorePersistsAndSurvivesCorruption()
     {
         var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        new UserDataStore(dir).Update(s => s.ChannelAliases["x"] = "y");
-        Assert.Equal("y", new UserDataStore(dir).State.ChannelAliases["x"]);
+        new UserDataStore(dir).Update(s => s.Channel("x").Alias = "y");
+        Assert.Equal("y", new UserDataStore(dir).State.AliasMap()["x"]);
         File.WriteAllText(Path.Combine(dir, "state.json"), "{broken");
-        Assert.Empty(new UserDataStore(dir).State.ChannelAliases);
+        Assert.Empty(new UserDataStore(dir).State.AliasMap());
+        Assert.True(File.Exists(Path.Combine(dir, "state.json.corrupt")));
     }
 }
 

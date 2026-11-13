@@ -10,6 +10,7 @@ public sealed class VideoIndex
     public static readonly VideoIndex Empty = new(Array.Empty<VideoRecord>(), new Dictionary<string, string>());
 
     private readonly Dictionary<Guid, VideoRecord> _byId;
+    private readonly Dictionary<string, VideoRecord> _byKey = new();
     private readonly ILookup<string, VideoRecord> _byChannel;
     private readonly IReadOnlyDictionary<string, string> _aliases;
 
@@ -18,12 +19,32 @@ public sealed class VideoIndex
         All = videos.ToList();
         _aliases = aliases;
         _byId = All.ToDictionary(v => v.ItemId);
+        foreach (var v in All)
+        {
+            _byKey.TryAdd(v.VideoKey, v);
+        }
+
         _byChannel = All.ToLookup(v => v.Channel.Key);
     }
 
     public IReadOnlyList<VideoRecord> All { get; }
 
     public VideoRecord? Get(Guid id) => _byId.GetValueOrDefault(id);
+
+    /// <summary>Resolves "yt:&lt;id&gt;" or "item:&lt;guid&gt;" keys; an item key also finds a video that now has a YouTube ID.</summary>
+    public VideoRecord? GetByKey(string key)
+    {
+        if (_byKey.TryGetValue(key, out var v))
+        {
+            return v;
+        }
+
+        return key.StartsWith("item:", StringComparison.Ordinal) && Guid.TryParse(key.AsSpan(5), out var id) ? Get(id) : null;
+    }
+
+    public Page<VideoRecord> ByKeys(IEnumerable<string> keys, int start, int limit) =>
+        Paginate(keys.Select(GetByKey).OfType<VideoRecord>().ToList(), start, limit);
+
 
     /// <summary>Display name: user alias, else the most frequent name among the channel's videos.</summary>
     public string ChannelName(string key) =>
@@ -102,9 +123,6 @@ public sealed class VideoIndex
             .GroupBy(c => c, StringComparer.OrdinalIgnoreCase)
             .Select(g => new CategorySummary(g.Key, g.Count()))
             .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
-
-    public Page<VideoRecord> ByIds(IEnumerable<Guid> ids, int start, int limit) =>
-        Paginate(ids.Select(Get).OfType<VideoRecord>().ToList(), start, limit);
 
     private static Page<T> Paginate<T>(List<T> all, int start, int limit)
     {

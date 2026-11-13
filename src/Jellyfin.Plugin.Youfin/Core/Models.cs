@@ -15,7 +15,14 @@ public sealed record VideoRecord(
     string? Path,
     ChannelKey Channel,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<string> Categories);
+    IReadOnlyList<string> Categories)
+{
+    /// <summary>Stable identity for user data: the YouTube ID, else the Jellyfin item id.</summary>
+    public string VideoKey => KeyOf(YouTubeId, ItemId);
+
+    public static string KeyOf(string? youTubeId, Guid itemId) =>
+        string.IsNullOrEmpty(youTubeId) ? "item:" + itemId.ToString("N") : "yt:" + youTubeId;
+}
 
 public sealed record ChannelSummary(string Key, string Name, int VideoCount, DateTime? LatestPublished, Guid? SampleVideoId, bool IsFavorite = false);
 

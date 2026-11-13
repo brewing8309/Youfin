@@ -57,7 +57,7 @@ public class YoufinController : ControllerBase
     {
         _svc.Store.Update(st =>
         {
-            if (string.IsNullOrWhiteSpace(body.Name)) { st.ChannelAliases.Remove(key); } else { st.ChannelAliases[key] = body.Name.Trim(); }
+            st.Channel(key).Alias = string.IsNullOrWhiteSpace(body.Name) ? null : body.Name.Trim();
         });
         _svc.Rebuild();
         return NoContent();
@@ -73,7 +73,7 @@ public class YoufinController : ControllerBase
             return BadRequest("Invalid target");
         }
 
-        _svc.Store.Update(st => st.ChannelMerges[key] = body.Into);
+        _svc.Store.Update(st => st.Channel(key).MergedInto = body.Into);
         _svc.Rebuild();
         return NoContent();
     }
@@ -82,7 +82,7 @@ public class YoufinController : ControllerBase
     [Authorize(Policy = "RequiresElevation")]
     public IActionResult Unmerge([FromRoute] string key)
     {
-        _svc.Store.Update(st => st.ChannelMerges.Remove(key));
+        _svc.Store.Update(st => st.Channel(key).MergedInto = null);
         _svc.Rebuild();
         return NoContent();
     }
@@ -92,7 +92,7 @@ public class YoufinController : ControllerBase
 
     [HttpGet("Playlists")]
     public ActionResult<IEnumerable<PlaylistDto>> Playlists() =>
-        Ok(Mine().Select(p => new PlaylistDto(p.Id, p.Name, p.VideoIds.Count)));
+        Ok(Mine().Select(p => new PlaylistDto(p.Id, p.Name, p.VideoKeys.Count)));
 
     [HttpPost("Playlists")]
     public ActionResult<PlaylistDto> CreatePlaylist([FromBody] NameBody body)
@@ -102,7 +102,7 @@ public class YoufinController : ControllerBase
             return BadRequest("Name required");
         }
 
-        var pl = new PlaylistData { Name = body.Name.Trim() };
+        var pl = new CollectionData { Name = body.Name.Trim() };
         _svc.Store.Update(st => PlaylistsOf(st).Add(pl));
         return new PlaylistDto(pl.Id, pl.Name, 0);
     }
@@ -128,7 +128,8 @@ public class YoufinController : ControllerBase
             var pl = PlaylistsOf(st).FirstOrDefault(p => p.Id == id);
             if (pl is null) { return; }
             found = true;
-            if (!pl.VideoIds.Contains(videoId)) { pl.VideoIds.Add(videoId); }
+            var vk = _svc.Index.Get(videoId)!.VideoKey;
+            if (!pl.VideoKeys.Contains(vk)) { pl.VideoKeys.Add(vk); }
         });
         return found ? NoContent() : NotFound();
     }
@@ -136,28 +137,23 @@ public class YoufinController : ControllerBase
     [HttpDelete("Playlists/{id}/Videos/{videoId}")]
     public IActionResult RemoveFromPlaylist([FromRoute] string id, [FromRoute] Guid videoId)
     {
-        _svc.Store.Update(st => PlaylistsOf(st).FirstOrDefault(p => p.Id == id)?.VideoIds.Remove(videoId));
+        _svc.Store.Update(st => PlaylistsOf(st).FirstOrDefault(p => p.Id == id)?.VideoKeys.RemoveAll(k => _svc.Index.GetByKey(k)?.ItemId == videoId));
         return NoContent();
     }
 
     private ISet<string> MyFavorites() =>
-        _svc.Store.State.FavoriteChannels.GetValueOrDefault(UserId.ToString("N")) ?? new HashSet<string>();
+        _svc.Store.State.Users.GetValueOrDefault(UserId.ToString("N"))?.FavoriteChannels ?? new HashSet<string>();
 
-    private List<PlaylistData> Mine() => _svc.Store.State.Playlists.GetValueOrDefault(UserId.ToString("N")) ?? new();
+    private List<CollectionData> Mine() => _svc.Store.State.Users.GetValueOrDefault(UserId.ToString("N"))?.Collections ?? new();
 
-    private List<PlaylistData> PlaylistsOf(YoufinState st)
-    {
-        var k = UserId.ToString("N");
-        if (!st.Playlists.TryGetValue(k, out var l)) { st.Playlists[k] = l = new(); }
-        return l;
-    }
+    private List<CollectionData> PlaylistsOf(YoufinState st) => st.User(UserId.ToString("N")).Collections;
 
     private IActionResult SetFavorite(string key, bool on)
     {
         var k = UserId.ToString("N");
         _svc.Store.Update(st =>
         {
-            if (!st.FavoriteChannels.TryGetValue(k, out var set)) { st.FavoriteChannels[k] = set = new(); }
+            var set = st.User(k).FavoriteChannels;
             if (on) { set.Add(key); } else { set.Remove(key); }
         });
         return NoContent();
@@ -177,7 +173,7 @@ public class YoufinController : ControllerBase
         {
             var pl = Mine().FirstOrDefault(x => x.Id == playlist);
             if (pl is null) { return NotFound(); }
-            p = index.ByIds(pl.VideoIds, startIndex, limit);
+            p = index.ByKeys(pl.VideoKeys, startIndex, limit);
         }
         else if (!string.IsNullOrEmpty(filter) && user is not null)
         {

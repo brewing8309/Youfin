@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Youfin.Core;
@@ -41,7 +42,8 @@ public sealed class IndexService : IHostedService, IDisposable
             try
             {
                 var state = Store.State;
-                _index = new VideoIndex(_scanner.Scan(state.ChannelMerges), state.ChannelAliases);
+                _index = new VideoIndex(_scanner.Scan(state.MergeMap()), state.AliasMap());
+                NormalizeKeys(_index);
             }
             catch (Exception ex)
             {
@@ -49,6 +51,26 @@ public sealed class IndexService : IHostedService, IDisposable
             }
         }
     }
+
+    /// <summary>Replaces legacy "item:" keys in collections with stable "yt:" keys once the video is known.</summary>
+    private void NormalizeKeys(VideoIndex index)
+    {
+        var changed = Store.State.Users.Values.SelectMany(u => u.Collections).Any(c => c.VideoKeys.Any(k => Normalized(index, k) != k));
+        if (!changed)
+        {
+            return;
+        }
+
+        Store.Update(st =>
+        {
+            foreach (var c in st.Users.Values.SelectMany(u => u.Collections))
+            {
+                c.VideoKeys = c.VideoKeys.Select(k => Normalized(index, k)).Distinct().ToList();
+            }
+        });
+    }
+
+    private static string Normalized(VideoIndex index, string key) => index.GetByKey(key)?.VideoKey ?? key;
 
     public Task StartAsync(CancellationToken ct)
     {
