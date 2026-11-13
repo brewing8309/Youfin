@@ -27,7 +27,7 @@ public class YoufinController : ControllerBase
         [FromQuery] int startIndex = 0, [FromQuery] int limit = 50)
     {
         var p = _svc.Index.Videos(channel, sort, desc, startIndex, limit);
-        return new Page<VideoDto>(p.Items.Select(VideoDto.From).ToList(), p.Total, p.StartIndex);
+        return new Page<VideoDto>(p.Items.Select(v => VideoDto.From(v, _svc.Index.ChannelName(v.Channel.Key))).ToList(), p.Total, p.StartIndex);
     }
 
     [HttpPost("Rebuild")]
@@ -42,6 +42,6 @@ public class YoufinController : ControllerBase
 /// <summary>Slim projection; clients fetch images/playback via standard Jellyfin endpoints using ItemId.</summary>
 public sealed record VideoDto(Guid ItemId, string? YouTubeId, string Title, string ChannelKey, string ChannelName, DateTime? Published, DateTime Added, long? RuntimeTicks)
 {
-    public static VideoDto From(VideoRecord v) =>
-        new(v.ItemId, v.YouTubeId, v.Title, v.Channel.Key, v.Channel.Name, v.Published, v.Added, v.RuntimeTicks);
+    public static VideoDto From(VideoRecord v, string channelName) =>
+        new(v.ItemId, v.YouTubeId, v.Title, v.Channel.Key, channelName, v.Published, v.Added, v.RuntimeTicks);
 }

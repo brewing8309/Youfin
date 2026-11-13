@@ -44,3 +44,17 @@ public class IndexTests
         Assert.Empty(new UserDataStore(dir).State.ChannelAliases);
     }
 }
+
+public class ChannelNameTests
+{
+    private static VideoRecord V(string name) =>
+        new(Guid.NewGuid(), null, "t", null, null, DateTime.UtcNow, null, null, new ChannelKey("id:X", name), [], []);
+
+    [Fact]
+    public void UsesMostFrequentNameUnlessAliased()
+    {
+        var vids = new[] { V("Good"), V("Good"), V("Odd") };
+        Assert.Equal("Good", new VideoIndex(vids, new Dictionary<string, string>()).ChannelName("id:X"));
+        Assert.Equal("Mine", new VideoIndex(vids, new Dictionary<string, string> { ["id:X"] = "Mine" }).ChannelName("id:X"));
+    }
+}

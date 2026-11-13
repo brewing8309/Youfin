@@ -25,15 +25,18 @@ public sealed class VideoIndex
 
     public VideoRecord? Get(Guid id) => _byId.GetValueOrDefault(id);
 
-    public string ChannelName(string key, string fallback) =>
-        _aliases.TryGetValue(key, out var a) && !string.IsNullOrWhiteSpace(a) ? a : fallback;
+    /// <summary>Display name: user alias, else the most frequent name among the channel's videos.</summary>
+    public string ChannelName(string key) =>
+        _aliases.TryGetValue(key, out var a) && !string.IsNullOrWhiteSpace(a)
+            ? a
+            : _byChannel[key].GroupBy(v => v.Channel.Name).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
+                .Select(g => g.Key).FirstOrDefault() ?? key;
 
     public Page<ChannelSummary> Channels(string? search, int start, int limit)
     {
         var q = _byChannel.Select(g =>
         {
-            var first = g.First();
-            return new ChannelSummary(g.Key, ChannelName(g.Key, first.Channel.Name), g.Count(),
+            return new ChannelSummary(g.Key, ChannelName(g.Key), g.Count(),
                 g.Max(v => v.Published), g.OrderByDescending(v => v.Published ?? v.Added).First().ItemId);
         });
         if (!string.IsNullOrWhiteSpace(search))
