@@ -31,7 +31,7 @@ public abstract class YoufinApiBase : ControllerBase
 
     /// <summary>Finds a collection of the current user; "watchlater" is virtual until the first video is added.</summary>
     protected CollectionData? FindCollection(string id) => MyCollections().FirstOrDefault(c => c.Id == id)
-        ?? (id == WatchLaterId ? new CollectionData { Id = WatchLaterId, Name = "Später ansehen", Kind = "watchLater" } : null);
+        ?? (id == WatchLaterId ? new CollectionData { Id = WatchLaterId, Name = "Watch later", Kind = "watchLater" } : null);
 
     /// <summary>Resolves requested video ids to stable keys; unknown ids are ignored.</summary>
     protected List<VideoRecord> Resolve(IEnumerable<Guid>? ids) =>

@@ -67,7 +67,7 @@ public class CollectionsController : YoufinApiBase
         return NoContent();
     }
 
-    /// <summary>Appends videos (skips ones already in it). Creates "Später ansehen" on first use.</summary>
+    /// <summary>Appends videos (skips ones already in it). Creates "Watch later" on first use.</summary>
     [HttpPost("Collections/{id}/Videos")]
     public IActionResult AddVideos([FromRoute] string id, [FromBody] VideoIdsBody body)
     {
@@ -83,7 +83,7 @@ public class CollectionsController : YoufinApiBase
             var c = list.FirstOrDefault(x => x.Id == id);
             if (c is null)
             {
-                list.Add(c = new CollectionData { Id = WatchLaterId, Name = "Später ansehen", Kind = "watchLater" });
+                list.Add(c = new CollectionData { Id = WatchLaterId, Name = "Watch later", Kind = "watchLater" });
             }
 
             foreach (var k in keys.Where(k => !c.VideoKeys.Contains(k)))

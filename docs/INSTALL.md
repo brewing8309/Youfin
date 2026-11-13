@@ -1,25 +1,45 @@
 # Installation
 
-Voraussetzung: Jellyfin 12.4 (.NET 10). Getestet nur mit 12.4.
+Requirement: Jellyfin 12.4 (.NET 10). Tested with 12.4 only.
 
-1. Bauen: `dotnet build -c Release src/Jellyfin.Plugin.Youfin` (oder `.dll` aus dem CI-Artefakt).
-2. `Jellyfin.Plugin.Youfin.dll` nach `<Jellyfin-Datenordner>/plugins/Youfin_0.1.0.0/` kopieren und Jellyfin neu starten.
-3. Weboberfläche: `https://<server>/Youfin/Web/` (Anmeldung über Jellyfin im selben Browser).
-4. Seitenleisten-Link für alle Nutzer in `jellyfin-web/config.json`:
-   `"menuLinks": [{"name": "Youfin", "icon": "smart_display", "url": "/Youfin/Web/"}]`
-5. FireTV/Swiftfin/Infuse: Dashboard → Plugins → Youfin → "Pro Serie eine Collection anlegen" aktivieren, dann die geplante Aufgabe
-   "Youfin: Serien-Collections synchronisieren" ausführen (läuft danach täglich). Optional auch Collections pro Kanal.
-   Konzept und Datenmodell: `docs/ORGANISATION.md`.
+## Via plugin repository (recommended)
+1. Jellyfin → Dashboard → Plugins → Repositories → add
+   `https://raw.githubusercontent.com/brewing8309/Youfin/main/manifest.json`
+2. Open the plugin catalog, install **Youfin**, restart Jellyfin.
 
-## Update
-Neue DLL ersetzen und Jellyfin neu starten. Einstellungen und Nutzerdaten (`<Plugin-Datenordner>/state.json`) bleiben erhalten. Eine ältere `state.json` (Schema 1) wird automatisch migriert, die Sicherung heißt `state.json.v1.bak`.
+This needs the repository to be public. Updates then appear in the plugin catalog like for any other plugin.
 
-## Daten
-- Videodaten kommen live aus Jellyfin (nichts wird kopiert oder überschrieben).
-- Kanalnamen: Jellyfin-Person (Director) → Serie → `.info.json` → Ordnername.
-- Youfin speichert nur Kanal-Aliase und -Merges, Serien, Zuordnungen, Kanal-Favoriten und Sammlungen in `state.json`.
+## Manually
+1. Download `youfin_<version>.zip` from the [releases](https://github.com/brewing8309/Youfin/releases) and copy `Jellyfin.Plugin.Youfin.dll` to `<Jellyfin data folder>/plugins/Youfin_<version>/`.
+2. Restart Jellyfin.
 
-## Grenzen
-- Die YouTube-Optik gibt es nur im Web. Die Apps zeigen Collections.
-- Autoplay per Link ist nicht möglich: Die Oberfläche öffnet die Jellyfin-Detailseite des Videos.
-- Serien, Merges und Zuordnungen werden ohne Neuscan der Bibliothek angewendet. Serien und Kanal-Verwaltung können nur Admins ändern, Sammlungen jeder Nutzer für sich.
+Or build it yourself: `dotnet build -c Release src/Jellyfin.Plugin.Youfin`.
+
+## Open the interface
+`https://<server>/Youfin/Web/` in the browser where you are signed in to Jellyfin.
+The language follows the browser; you can change it with the selector in the header (see [TRANSLATING.md](TRANSLATING.md)).
+
+For a sidebar entry for all users, add this to `jellyfin-web/config.json` (the path depends on your installation):
+
+```json
+"menuLinks": [{ "name": "Youfin", "icon": "smart_display", "url": "/Youfin/Web/" }]
+```
+
+## FireTV, Swiftfin and Infuse
+Dashboard → Plugins → Youfin → enable *Create a Jellyfin collection per series*, then run the scheduled task
+**Youfin: Sync series collections** (it then runs daily). Optionally collections per channel as well.
+Concept and data model: [ORGANISATION.md](ORGANISATION.md).
+
+## Updating
+Install the update from the catalog, or replace the DLL, and restart Jellyfin. Settings and user data
+(`<plugin data folder>/state.json`) are kept. An older `state.json` (schema 1) is migrated automatically; the backup is `state.json.v1.bak`.
+
+## Data
+- Video data is read live from Jellyfin (nothing is copied or overwritten).
+- Channel name: Jellyfin person (director) → series → `.info.json` → folder name.
+- Youfin only stores channel aliases and merges, series, assignments, channel favorites and collections in `state.json`.
+
+## Limits
+- The YouTube-like look exists in the web interface only. The apps show collections.
+- Autoplay via link is not possible: the interface opens the Jellyfin details page of the video.
+- Series and channel management are admin-only; collections belong to each user.

@@ -34,11 +34,11 @@ public sealed class CollectionSyncTask : IScheduledTask
         _log = log;
     }
 
-    public string Name => "Youfin: Serien-Collections synchronisieren";
+    public string Name => "Youfin: Sync series collections";
 
     public string Key => "YoufinCollectionSync";
 
-    public string Description => "Legt pro Youfin-Serie eine Collection an (für Apps ohne Plugin-Oberfläche). Nur aktiv, wenn in den Plugin-Einstellungen aktiviert.";
+    public string Description => "Creates one Jellyfin collection per Youfin series (for apps that cannot show plugin pages). Only active if enabled in the plugin settings.";
 
     public string Category => "Youfin";
 

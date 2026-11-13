@@ -1,42 +1,42 @@
-# Organisation: Kanäle, Serien, Einzelvideos, Sammlungen
+# Organisation: channels, series, standalone videos, collections
 
-Jedes Video ist vollwertiger Teil der Bibliothek, auch ohne Serie oder Kanal-Sammlung.
+Every video is a full part of the library, even without a series or channel collection.
 
-| Konzept | Bedeutung | Wer ändert |
+| Concept | Meaning | Who changes it |
 |---|---|---|
-| **Kanal** | Herkunft, automatisch erkannt. Original-Metadaten bleiben unverändert (Umbenennen/Zusammenführen nur als Anzeige). | Admin |
-| **Serie** | Geordnete, kuratierte Reihe. Ein Video gehört zu höchstens einer Serie, Serien dürfen Kanäle mischen. Optional "Kanalregel": neue Videos eines Kanals kommen automatisch dazu. | Admin |
-| **Sammlung** | Freie Gruppierung pro Nutzer, ein Video kann in mehreren sein, manuell sortierbar. "Später ansehen" ist eine Standard-Sammlung. | jeder Nutzer |
-| **Einzelvideo** | Kein Objekt, sondern ein Zustand: Video ohne Serie. Es wird nie automatisch eine Serie erzeugt. | – |
+| **Channel** | Origin, detected automatically. The original metadata stays untouched (rename/merge only change the display). | admin |
+| **Series** | An ordered, curated series. A video belongs to at most one series; series may mix channels. Optional *channel rule*: new videos of a channel join automatically. | admin |
+| **Collection** | Free grouping per user. A video can be in several, sortable by hand. *Watch later* is a built-in collection. | each user |
+| **Standalone video** | Not an object but a state: a video without a series. A series is never created automatically. | – |
 
-Rangfolge für die Serienzugehörigkeit: "aus Serie gelöst" > ausdrückliche Zuweisung > Kanalregel > Einzelvideo.
-Das Video erscheint in "Alle Videos" genau einmal; Serien- und Kanalseiten sind nur Ansichten.
+Precedence for series membership: "removed from series" > explicit assignment > channel rule > standalone.
+A video appears exactly once in "All videos"; series and channel pages are only views.
 
-## Datenmodell (`state.json`, Schema 2, nur Abweichungen)
+## Data model (`state.json`, schema 2, deviations only)
 ```
 channels:  { channelKey: { alias?, mergedInto? } }
 series:    { seriesId: { name, sort: published|manual|title, autoChannelKey? } }
 overrides: { videoKey: { seriesId? | detached, order? } }
 users:     { userId: { favoriteChannels[], collections[{id,name,kind,videoKeys[]}], dismissedSuggestions[] } }
 ```
-`videoKey` = `yt:<YouTube-ID>`, sonst `item:<Jellyfin-ID>` (die YouTube-ID bleibt stabil, wenn die Bibliothek neu angelegt wird).
-Zustand je Video und Serienmitgliedschaft werden beim Index-Aufbau berechnet und nicht gespeichert.
+`videoKey` = `yt:<YouTube ID>`, otherwise `item:<Jellyfin ID>` (the YouTube ID stays stable if the library is re-added).
+A video's state and series membership are computed when the index is built and are not stored.
 
 ## Migration
-Beim ersten Start wandelt das Plugin eine Schema-1-Datei automatisch um und legt `state.json.v1.bak` an (wird nie überschrieben).
-Aliase und Merges, Kanal-Favoriten und Playlists (jetzt Sammlungen, Reihenfolge bleibt) werden übernommen.
-Alle Videos sind danach Einzelvideos; Serien legst du bewusst an (Kanalseite → "Als Serie anlegen").
-Eine beschädigte Datei wird als `state.json.corrupt` gesichert.
+On first start the plugin converts a schema 1 file automatically and writes `state.json.v1.bak` (never overwritten).
+Aliases, merges, channel favorites and playlists (now collections, order kept) are carried over.
+Afterwards all videos are standalone videos; you create series deliberately (channel page → *Create series*).
+A damaged file is saved as `state.json.corrupt`.
 
-## Oberfläche
-Entdecken: Startseite, Neu hinzugefügt, Alle Videos · Bibliothek: Serien, Einzelvideos, Kanäle, Sammlungen, Kategorien ·
-Meins: Weiter ansehen, Später ansehen, Favoriten, Verlauf. Über "⋯" an jedem Video und über den Auswahlmodus
-(Mehrfachauswahl) lassen sich Videos Sammlungen und Serien zuordnen oder als Einzelvideo kennzeichnen.
+## Interface
+Discover: Home, Recently added, All videos · Library: Series, Standalone videos, Channels, Collections, Categories ·
+Mine: Continue watching, Watch later, Favorites, History. The ⋯ menu on every video and the multi-select mode assign videos
+to collections and series or mark them as standalone.
 
 ## Apps (FireTV, Swiftfin, Infuse)
-Die geplante Aufgabe "Youfin: Serien-Collections synchronisieren" legt pro Serie eine Jellyfin-Collection an (optional auch pro Kanal),
-fügt neue Folgen hinzu und entfernt gelöste Videos wieder. Eine Collection gelöschter Serien wird geleert, aber nicht gelöscht.
+The scheduled task *Youfin: Sync series collections* creates one Jellyfin collection per series (optionally per channel too),
+adds new episodes and removes videos taken out of a series. The collection of a deleted series is emptied but not deleted.
 
-## Bewusst weggelassen
-Automatische Serienvorschläge (Titelmuster, Playlist-Felder der info.json): bei wenigen Kanälen reicht "Als Serie anlegen".
-Der Index ist so gebaut, dass eine Vorschlags-Engine später ohne Datenumbau ergänzt werden kann.
+## Left out on purpose
+Automatic series suggestions (title patterns, playlist fields of the info.json): with few channels, *Create series* is enough.
+The index is built so that a suggestion engine can be added later without changing the data.

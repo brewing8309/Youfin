@@ -1,90 +1,45 @@
-# Youfin – Architektur & Plan
+# Architecture
 
-## Kontext
-Lokale YouTube-Videos (yt-dlp, `[videoId]` im Dateinamen, `.info.json` daneben, Plugin „YouTube Metadata“) sollen in Jellyfin wie ein Offline-YouTube nutzbar sein. Das muss in Web, **FireTV (offizielle App)** und **Swiftfin** funktionieren, Infuse ist nice-to-have. Repo: `brewing8309/Youfin` (privat, leer).
+## Goals
+Show locally stored YouTube videos like a personal offline YouTube inside Jellyfin, reuse existing metadata,
+store as little extra data as possible, and work with several thousand videos.
 
-## Analyse-Ergebnisse (verifiziert)
-**Jellyfin**
-- Stable ist **12.4** (.NET 10, `Jellyfin.Controller`/`Jellyfin.Model` 12.4.0). Das Plugin-Template steht noch auf 10.11, also selbst auf 12.4 anheben.
-- Plugin-API: `BasePlugin<T>`, `IHasWebPages`/`PluginPageInfo`, `IPluginServiceRegistrator`, eigene `ControllerBase`-Controller, `ILibraryManager` (Events ItemAdded/Updated/Removed), `IUserDataManager`, `IDtoService`, `ILibraryPostScanTask`, `IScheduledTask`.
-- `EnableInMainMenu`-Seiten sehen **nur Admins**. Eine offizielle Nutzer-Seite in jellyfin-web gibt es nicht.
+## Findings (Jellyfin 12.4, .NET 10)
+- Plugins are .NET assemblies: `BasePlugin<T>`, `IHasWebPages`, `IPluginServiceRegistrator`, own ASP.NET controllers,
+  `ILibraryManager`, `IUserDataManager`, `ICollectionManager`, `IScheduledTask`.
+- `EnableInMainMenu` plugin pages appear for admins only. There is no official user-facing page in jellyfin-web.
+- FireTV, Swiftfin and Infuse cannot show plugin pages. They can show Jellyfin collections.
+- The *YouTube Metadata* plugin stores title, description, date and thumbnail, the video ID in `ProviderIds["YoutubeMetadata"]`
+  and the channel as a person (director). Tags and categories exist only in the `.info.json`.
 
-**Clients**
-- FireTV (jellyfin-androidtv), Swiftfin und Infuse sind native Apps und **können keine Plugin-Webseiten anzeigen**.
-- Swiftfin zeigt: Bibliotheken, Serien, BoxSets (Collections), Favoriten, Resume, Next Up, Latest und Tag-Filter. **Keine Playlists** (PR #2164 offen), keine IChannel-Kanäle, kein Studio-Filter.
-- ⇒ Eine YouTube-*Optik* gibt es nur im Web. In den Apps geht nur die **Struktur**, abgebildet über native Jellyfin-Objekte.
+## Decisions
+1. **Two output layers, one core.** Web interface served by the plugin at `/Youfin/Web/` (embedded resources, same origin, uses the
+   Jellyfin login token) plus Jellyfin collections for the native apps. No unofficial injection into jellyfin-web.
+   Playback opens the Jellyfin details page (`/web/#/details?id=…`); a sidebar link is possible through `menuLinks` in `config.json`.
+2. **No duplicate metadata.** Titles, images, durations, dates, resume position, watched and video favorites come live from Jellyfin.
+   Youfin never writes to video items.
+3. **Own storage** is a small JSON file (`state.json`, written atomically): channel aliases/merges, series, per-video overrides,
+   per-user favorites and collections. See [ORGANISATION.md](ORGANISATION.md).
+4. **Index = scan + overlay.** The scanner reads the library (read-only) into immutable records. Merges, aliases, series and
+   overrides are applied as an overlay when the index is built, so changing them needs no library rescan. The index is swapped atomically.
+5. **Channel detection** (priority): channel ID of the director person → series ID → `.info.json` `channel_id` → channel name → "Unknown".
+6. **Freshness:** `ILibraryManager` events (debounced rebuild), plus an admin endpoint to rebuild.
+7. **Robustness:** every source is optional; errors per item are logged and skipped. The plugin works without *YouTube Metadata*.
+8. **Performance:** in-memory index, paginated endpoints, lazy-loaded thumbnails. Tested with 20,000 videos.
+9. **Internationalisation:** the interface texts live in `i18n/<code>.json` (English is the fallback); see [TRANSLATING.md](TRANSLATING.md).
 
-**YouTube Metadata** (ankenyr v1.0.3.15, Jellyfin 10.11, nicht für Home Videos)
-- Video-ID: `ProviderIds["YoutubeMetadata"]`, sonst Regex `\[([A-Za-z0-9_-]{11})\]` im Dateinamen.
-- Schreibt Name, Overview, PremiereDate und das Primary-Bild.
-- Kanal landet als **Person (Director)** mit `ProviderIds["YoutubeMetadata"]=channel_id`. Bei TV-Bibliotheken zusätzlich als Series mit channel_id.
-- Keine Tags, Kategorien oder Studios. Die stehen nur in `.info.json` (`channel_id`, `channel`, `tags`, `categories`).
-- **Risiko:** Die 12.x-Kompatibilität von YouTube Metadata ist offen. Youfin darf sich deshalb nicht darauf verlassen.
-
-## Architektur-Entscheidungen
-1. **Zwei Ausgabeschichten, ein Kern**
-   - *Native Schicht* (FireTV, Swiftfin, Infuse): Youfin pflegt Jellyfin-**Collections (BoxSets)**: eine pro Kanal, eine pro Kategorie, eine pro Youfin-Playlist. Optional gespiegelt als echte Jellyfin-Playlist für Clients, die Playlists können. Weiter ansehen, Neu, Favoriten und Gesehen liefern die Apps schon nativ.
-   - *Web-Schicht*: YouTube-ähnliche SPA, vom Plugin unter `/Youfin/web/` ausgeliefert. Gleiche Origin, nutzt den Jellyfin-Token des Logins. Erreichbar über einen Custom Link im Modern Layout (in Phase 2 verifizieren) und über die Admin-Menüseite. Wiedergabe per Deep-Link auf `/web/#/details?id=…` (nativer Player). Keine inoffizielle Injection.
-2. **Keine Metadaten-Duplikate**: Titel, Beschreibung, Bilder, Dauer, Daten, Resume, Gesehen und Video-Favoriten kommen immer live aus der Jellyfin-API und `IUserDataManager`. Youfin schreibt nie in Video-Items.
-3. **Eigene Datenhaltung** (SQLite in `Plugin.DataFolderPath`, übersteht Updates)
-   - *Ableitbarer Cache:* videoItemId → youtubeId, channelKey, tags, categories (aus info.json, beim Scan neu gebaut).
-   - *Nutzerdaten:* Kanal-Aliase/Umbenennungen, Kanal-Merges, Kanal-Favoriten (pro User), Kategorien, Playlists.
-4. **Kanal-Erkennung (Priorität)**
-   1. channel_id aus der Person „Director“ (`ProviderIds.YoutubeMetadata`)
-   2. Series-ProviderId
-   3. `.info.json` `channel_id`
-   4. Kanalname (uploader/Person/Ordner)
-   5. „Unbekannt“
-
-   Danach wird die Merge-Tabelle angewendet. Avatar: Person-Bild → Series-Bild → `*[channelId]*.jpg` → Platzhalter.
-5. **Aktualität**: `ILibraryManager`-Events (inkrementell), `ILibraryPostScanTask` (Abgleich) und ein `IScheduledTask` für Rebuild und Collection-Sync.
-6. **Robustheit**: Alle Quellen sind optional. Ohne YouTube Metadata greifen info.json und Dateiname. Jede Kette hat Null-Checks, Fehler pro Item werden geloggt (`ILogger<T>`) und der Scan läuft weiter.
-7. **Performance**: Index im Speicher plus SQLite. Alle Listen-Endpunkte mit `startIndex`/`limit`. Die SPA lädt per Lazy-Loading/Infinite Scroll, Bilder holt sie direkt über `/Items/{id}/Images`.
-8. **Empfehlung Bibliothek**: Am besten für alle Apps ist eine eigene „YouTube“-Bibliothek vom Typ *Serien* (Kanal = Serie). Youfin unterstützt aber alle Typen.
-
-## Projektstruktur (Repo Youfin)
+## Components
 ```
 src/Jellyfin.Plugin.Youfin/
-  Plugin.cs, PluginServiceRegistrator.cs, Configuration/
-  Core/        (YouTubeIdParser, InfoJsonReader, ChannelResolver, Index)
-  Data/        (SQLite-Repository, Migrations)
-  Sync/        (LibraryEventListener, PostScanTask, CollectionSyncTask)
-  Api/         (YoufinController: channels, videos, search, playlists, categories, favorites)
-  Web/         (SPA: index.html, js, css – eingebettete Ressourcen)
-tests/Jellyfin.Plugin.Youfin.Tests/  (xUnit)
-docs/ARCHITECTURE.md, docs/INSTALL.md
-build.yaml, .github/workflows (Build, Release, manifest.json)
+  Core/       YouTubeIdParser, InfoJsonReader, ChannelResolver, VideoIndex, models   (no Jellyfin dependency, unit-tested)
+  Data/       UserDataStore (state.json), schema 2 + migration from schema 1
+  Services/   LibraryScanner, IndexService, CollectionSyncTask
+  Api/        controllers: videos/channels, series, collections
+  Web/        interface (index.html, app.js, style.css, i18n/) and the plugin settings page
+assets/       logo and icons (embedded)
+tests/        xUnit
 ```
 
-## Phasen
-- **Phase 2 – Grundgerüst**: Projekt auf 12.4 aufsetzen, Registrierung, Parser und Resolver mit Tests, SQLite, Index, API (Kanäle/Videos paginiert). Spike: Custom Link und Deep-Link-Wiedergabe prüfen.
-- **Phase 3 – Web-UI**: Startseite (Neu, Weiter ansehen, Zuletzt angesehen, Meine Kanäle), Grid, Kanalseite, Detailseite, Sortierung, Ansichtsmodi.
-- **Phase 4 – Funktionen**: Suche (Titel, Kanal, Beschreibung, ID, Tags), Kanal-Favoriten, Merge, Umbenennen, Playlists, Kategorien, Vor/Zurück im Kanal. Collection-Sync für die Apps.
-- **Phase 5 – QS**: Test mit mehreren tausend Videos, mehrere User, Fehlerfälle (ohne YouTube Metadata, ohne info.json), Test auf FireTV, Swiftfin und Infuse. Installations-/Update-Doku, eigenes Plugin-Repository über GitHub Pages.
-
-## Risiken
-- Die Apps bekommen kein YouTube-Layout, nur Struktur (technisch nicht änderbar ohne App-Forks).
-- Custom Link im Modern Layout und Deep-Link-Autoplay noch unbestätigt; Fallback wäre die Detailseite mit Play-Button.
-- YouTube Metadata auf 12.x eventuell defekt; Fallback über info.json ist eingeplant.
-- Collections pro Kanal erzeugen zusätzliche Jellyfin-Objekte; per Config abschaltbar.
-
-## Verifikation
-- `dotnet test` (Parser, Resolver, Merge, Pagination).
-- Test-Jellyfin 12.4 mit Beispielsammlung: Plugin installieren, Scan, API per curl, SPA im Browser (Playwright), Collections in Swiftfin/FireTV sichtbar.
-- Keine Container-Neustarts auf dem Homelab ohne Rückfrage.
-
-## Entscheidungen / Verifikation (Stand Phase 3)
-- **Persistenz:** JSON-Datei (`state.json`, atomar geschrieben) statt SQLite: wenig Daten (Merges, Aliase, Favoriten), keine zusätzliche Abhängigkeit im Plugin.
-- **UI-Auslieferung:** Plugin liefert die SPA als eingebettete Ressourcen unter `/Youfin/Web/` (anonym nur statische Dateien, alle Daten-Endpunkte erfordern Login). Token kommt aus `localStorage.jellyfin_credentials` (gleiche Origin).
-- **Verifiziert (Jellyfin 12.4):** Scan, API, Auth (401 ohne Login), Resume/Recent/Favorites über `InternalItemsQuery`, Deep-Link `/web/#/details?id=<id>` öffnet die native Detailseite, `menuLinks` in `jellyfin-web/config.json` (`{name, icon, url}`) zeigt Links in der Seitenleiste für alle Nutzer.
-- **Nicht möglich/ungeprüft:** Autoplay per Deep-Link (Detailseite mit Abspielen-Button als Fallback). Playlists, Kategorien, Suche, Kanal-Favoriten: Phase 4.
-
-## Phase 4 (verifiziert gegen Jellyfin 12.4)
-- **Suche:** Titel, Kanalname, Beschreibung, YouTube-ID, Tags, Kategorien (alle Begriffe müssen passen). `GET /Youfin/Videos?q=`.
-- **Kanäle:** Favoriten pro Nutzer, Umbenennen (nur Alias, Original unverändert) und Zusammenführen/Aufheben nur für Admins. Änderungen liegen in `state.json`.
-- **Kategorien:** aus `categories` der info.json (`GET /Youfin/Categories`, `?category=`). Manuelle Zuordnung geschieht über Playlists.
-- **Playlists:** pro Nutzer (`/Youfin/Playlists`), Reihenfolge = Einfüge-Reihenfolge.
-- **Apps (FireTV/Swiftfin/Infuse):** geplante Aufgabe "Youfin: Kanal-Collections synchronisieren" legt pro Kanal (ab 2 Videos) eine BoxSet-Collection an, fügt nur hinzu und löscht nie. In den Plugin-Einstellungen aktivieren (standardmäßig aus).
-
-## Organisation (Serien, Einzelvideos, Sammlungen)
-Siehe `docs/ORGANISATION.md`. Kern: Index = gescannte Rohdaten + Overlay (Merges, Aliase, Serien, Overrides); Zustandsänderungen brauchen keinen Neuscan.
+## Verified against Jellyfin 12.4
+Scan, API, authorisation (401/403), resume/recent/favorites via `InternalItemsQuery`, deep link to the details page, `menuLinks`,
+collection sync (create, add, remove), several users, restart persistence.

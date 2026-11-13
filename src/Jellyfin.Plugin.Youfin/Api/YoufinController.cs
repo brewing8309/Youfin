@@ -229,6 +229,11 @@ public class YoufinController : YoufinApiBase
         return VideoDto.From(v, index.ChannelName(v.Channel.Key), pos, played, fav, sid, sid is null ? null : index.GetSeries(sid)?.Name);
     }
 
+    [HttpGet("Web")]
+    [AllowAnonymous]
+    public IActionResult WebRoot() =>
+        Request.Path.Value!.EndsWith('/') ? Web(null) : LocalRedirect(Request.PathBase + "/Youfin/Web/");   // relative asset paths need the trailing slash
+
     /// <summary>Serves the embedded web UI (static files only; data calls are authorized).</summary>
     [HttpGet("Web/{**path}")]
     [AllowAnonymous]

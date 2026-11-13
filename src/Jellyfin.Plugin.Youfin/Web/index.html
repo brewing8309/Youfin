@@ -1,24 +1,24 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head><meta charset="utf-8"><title>Youfin</title></head>
 <body>
 <div id="YoufinPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
   <div data-role="content">
     <div class="content-primary">
-      <h2 style="display:flex;align-items:center;gap:12px"><img src="/Youfin/Web/icon.svg" alt="" width="36" height="36">Youfin</h2>
-      <p><a is="emby-linkbutton" class="button-link" href="/Youfin/Web/" target="_blank">Youfin-Oberfläche öffnen</a></p>
+      <h2 style="display:flex;align-items:center;gap:12px"><img id="YoufinIcon" alt="" width="36" height="36">Youfin</h2>
+      <p><a is="emby-linkbutton" class="button-link" id="YoufinOpen" target="_blank"><span data-i18n="cfg.open">Open Youfin interface</span></a></p>
       <form id="YoufinForm">
         <label class="checkboxContainer">
           <input is="emby-checkbox" type="checkbox" id="SyncCollections">
-          <span>Pro Serie eine Jellyfin-Collection anlegen (für FireTV, Swiftfin, Infuse)</span>
+          <span data-i18n="cfg.syncSeries">Create a Jellyfin collection per series (for FireTV, Swiftfin, Infuse)</span>
         </label>
         <label class="checkboxContainer">
           <input is="emby-checkbox" type="checkbox" id="SyncChannelCollections">
-          <span>Zusätzlich pro Kanal (ab 2 Videos) eine Collection anlegen</span>
+          <span data-i18n="cfg.syncChannels">Also create a collection per channel (2 or more videos)</span>
         </label>
-        <div class="fieldDescription">Läuft über die geplante Aufgabe "Youfin: Serien-Collections synchronisieren" (täglich oder manuell).</div>
+        <div class="fieldDescription" data-i18n="cfg.hint">Runs through the scheduled task “Youfin: Sync series collections” (daily or manually).</div>
         <br>
-        <button is="emby-button" type="submit" class="raised button-submit block"><span>Speichern</span></button>
+        <button is="emby-button" type="submit" class="raised button-submit block"><span data-i18n="cfg.save">Save</span></button>
       </form>
     </div>
   </div>
@@ -26,7 +26,27 @@
     (function () {
       var id = '6b1f3c5e-8a47-4d2b-9c0e-3f5a7d9e1b24';
       var page = document.querySelector('#YoufinPage');
+      var web = function (p) { return ApiClient.getUrl('/Youfin/Web/' + p); };
+      // Same language logic as the Youfin interface: saved choice, then browser language, else English.
+      function translate() {
+        return fetch(web('languages.json')).then(function (r) { return r.json(); }).then(function (langs) {
+          var codes = langs.map(function (l) { return l.code.toLowerCase(); }), pick = 'en', saved = localStorage.getItem('youfin.lang');
+          var prefs = saved ? [saved] : (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en']);
+          for (var i = 0; i < prefs.length; i++) {
+            var lc = String(prefs[i]).toLowerCase(), base = lc.split('-')[0];
+            if (codes.indexOf(lc) >= 0) { pick = lc; break; }
+            if (codes.indexOf(base) >= 0) { pick = base; break; }
+          }
+          return pick === 'en' ? null : fetch(web('i18n/' + pick + '.json')).then(function (r) { return r.json(); });
+        }).then(function (d) {
+          if (!d) return;
+          page.querySelectorAll('[data-i18n]').forEach(function (e) { var v = d[e.getAttribute('data-i18n')]; if (v) e.textContent = v; });
+        }).catch(function () { /* English text stays */ });
+      }
       page.addEventListener('pageshow', function () {
+        page.querySelector('#YoufinIcon').src = web('icon.svg');
+        page.querySelector('#YoufinOpen').href = web('');
+        translate();
         Dashboard.showLoadingMsg();
         ApiClient.getPluginConfiguration(id).then(function (c) {
           page.querySelector('#SyncCollections').checked = !!c.SyncCollections;

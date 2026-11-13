@@ -26,7 +26,7 @@
 
 > 🤖 **100% vibecoded:** Youfin was created entirely with AI (Claude Code by Anthropic), from the idea to the logo. The code is tested but was not written by hand. Use at your own risk.
 >
-> Screenshots show demo data. The web interface is currently German only, and the documents in `docs/` are in German.
+> Screenshots show demo data. The web interface is available in English and German and is easy to extend with more languages, see [Languages](#languages).
 
 ## Why Youfin?
 
@@ -70,15 +70,15 @@ Downloaded YouTube videos don't fit well into Jellyfin's movies-and-shows struct
 | **Collection** | Your own free-form grouping. A video can be in several. |
 | **Standalone video** | A video without a series. This is the default for new videos. |
 
-More in [docs/ORGANISATION.md](docs/ORGANISATION.md) (German).
+More in [docs/ORGANISATION.md](docs/ORGANISATION.md).
 
 ## Installation
 
 **Requirement:** Jellyfin 12.4 (.NET 10).
 
-**Via plugin repository** (once this repository is public):
+**Via plugin repository** (recommended; this repository is a Jellyfin plugin repository, it needs to be public):
 1. Jellyfin → Dashboard → Plugins → Repositories → add: `https://raw.githubusercontent.com/brewing8309/Youfin/main/manifest.json`
-2. Install *Youfin* from the catalog and restart Jellyfin.
+2. Open the plugin catalog, install *Youfin* and restart Jellyfin. Updates show up in the catalog.
 
 **Manually:**
 1. Download `youfin_0.1.0.0.zip` from the [releases](https://github.com/brewing8309/Youfin/releases) and copy the DLL to `<Jellyfin data folder>/plugins/Youfin_0.1.0.0/`.
@@ -92,13 +92,13 @@ For an entry in the Jellyfin sidebar, add this to `jellyfin-web/config.json`:
 "menuLinks": [{ "name": "Youfin", "icon": "smart_display", "url": "/Youfin/Web/" }]
 ```
 
-More details and updates: [docs/INSTALL.md](docs/INSTALL.md) (German).
+More details and updates: [docs/INSTALL.md](docs/INSTALL.md).
 
 ## FireTV, Swiftfin and Infuse
 
 These apps do not show plugin pages. If you like, Youfin therefore creates **one Jellyfin collection per series** (optionally per channel too), which shows up there like a normal album.
 
-Enable *Create a collection per series* under Dashboard → Plugins → Youfin, then run the task *Youfin: Serien-Collections synchronisieren*. It runs daily afterwards.
+Enable *Create a collection per series* under Dashboard → Plugins → Youfin, then run the scheduled task *Youfin: Sync series collections*. It runs daily afterwards.
 
 ## How it works
 
@@ -114,7 +114,16 @@ Enable *Create a collection per series* under Dashboard → Plugins → Youfin, 
 - Only what Jellyfin does not know is stored: series, assignments, channel aliases, favorites and collections. It lives in `state.json` in the plugin data folder and survives updates.
 - The plugin also works without *YouTube Metadata* and without `.info.json`. File and folder names are used instead.
 
-Architecture and decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (German).
+Architecture and decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Languages
+
+The interface is available in **English** and **German**. It picks the language of your browser (or your choice in the header) and falls back to English.
+More languages are easy to add: copy one JSON file, translate it and open a pull request. The tests check that translations are complete. See [docs/TRANSLATING.md](docs/TRANSLATING.md).
+
+## Releasing (for maintainers)
+
+Pushing a tag such as `v0.1.1` runs the release workflow: it tests and builds the plugin, publishes the GitHub release with the ZIP and adds the version (with checksum) to `manifest.json`, which is the Jellyfin plugin repository.
 
 ## Development
 
@@ -130,7 +139,8 @@ The plugin is written in C# (.NET 10) against `Jellyfin.Controller` 12.4. The in
 - [x] Channels, search, favorites, playlists
 - [x] Series, standalone videos, collections, multi-select
 - [x] Collection sync for FireTV, Swiftfin and Infuse
-- [ ] English web interface
+- [x] English and German interface, ready for more languages
+- [x] Usable as a Jellyfin plugin repository (manifest and release workflow)
 - [ ] Automatic series suggestions (title patterns, playlist fields in `.info.json`)
 - [ ] Assign categories manually
 - [ ] More than 200 episodes per series in the reorder view

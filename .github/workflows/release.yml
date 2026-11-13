@@ -1,0 +1,41 @@
+name: Release
+# Push a tag like v0.1.1 to build the plugin, publish the GitHub release and update manifest.json
+# (the Jellyfin plugin repository: https://raw.githubusercontent.com/brewing8309/Youfin/main/manifest.json).
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Version from tag
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          while [ "$(echo "$V" | tr -cd '.' | wc -c)" -lt 3 ]; do V="$V.0"; done
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+      - run: dotnet test -c Release
+      - name: Build and package
+        run: |
+          dotnet build -c Release src/Jellyfin.Plugin.Youfin -p:AssemblyVersion=$VERSION -p:FileVersion=$VERSION
+          mkdir dist && cp src/Jellyfin.Plugin.Youfin/bin/Release/net10.0/Jellyfin.Plugin.Youfin.dll dist/
+          (cd dist && zip -q ../youfin_$VERSION.zip Jellyfin.Plugin.Youfin.dll)
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "youfin_$VERSION.zip" --title "Youfin ${GITHUB_REF_NAME#v}" --generate-notes
+      - name: Update plugin repository manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main && git checkout -B main origin/main
+          python3 scripts/update_manifest.py manifest.json "$VERSION" "youfin_$VERSION.zip" \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/youfin_$VERSION.zip" \
+            "See https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
+          git config user.name "github-actions[bot]" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json && git commit -m "Update plugin repository manifest for $VERSION" && git push origin main

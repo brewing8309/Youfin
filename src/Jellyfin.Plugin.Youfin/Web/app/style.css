@@ -57,3 +57,4 @@ body.selmode .kebab{display:none}
 .chips{display:flex;gap:8px;margin-bottom:14px}.chips a{background:var(--panel);border-radius:16px;padding:6px 14px}.chips a.on{background:var(--text);color:#000}
 .ord{display:flex;gap:8px;align-items:center}.ord .card{flex:1}.ordbtn{display:flex;flex-direction:column;gap:6px}
 .sub{color:var(--dim);margin:4px 0 12px}
+#lang{background:var(--panel);color:var(--text);border:0;border-radius:8px;padding:6px 8px;margin-right:12px;font:inherit}

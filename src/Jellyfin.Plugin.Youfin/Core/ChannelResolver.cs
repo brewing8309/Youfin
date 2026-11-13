@@ -22,7 +22,7 @@ public static class ChannelResolver
     /// <summary>Resolves channel by ID (person, series, info.json) then name fallback; applies merge map.</summary>
     public static ChannelKey Resolve(ChannelSources s, IReadOnlyDictionary<string, string>? merges = null)
     {
-        var name = First(s.PersonName, s.Info?.Channel, s.SeriesName, s.FolderName) ?? "Unbekannt";
+        var name = First(s.PersonName, s.Info?.Channel, s.SeriesName, s.FolderName) ?? "Unknown";
         var id = First(s.PersonChannelId, s.SeriesChannelId, s.Info?.ChannelId);
 
         string key = id is not null
