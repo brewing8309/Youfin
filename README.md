@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="https://github.com/brewing8309/Youfin/actions/workflows/build.yml"><img alt="Build" src="https://github.com/brewing8309/Youfin/actions/workflows/build.yml/badge.svg"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.1.1-ffb547">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.1.2-ffb547">
   <img alt="Jellyfin 12.4" src="https://img.shields.io/badge/Jellyfin-12.4-00a4dc?logo=jellyfin&logoColor=white">
   <img alt=".NET 10" src="https://img.shields.io/badge/.NET-10-512bd4?logo=dotnet&logoColor=white">
   <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-blue"></a>
