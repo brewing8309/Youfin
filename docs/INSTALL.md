@@ -15,7 +15,17 @@ This needs the repository to be public. Updates then appear in the plugin catalo
 
 Or build it yourself: `dotnet build -c Release src/Jellyfin.Plugin.Youfin`.
 
-## Open the interface
+## Choose your libraries
+Dashboard → Plugins → Youfin → *Libraries to include in Youfin*. Select the libraries that contain your YouTube videos; your other movies and shows then stay out of Youfin.
+If nothing is selected, Youfin uses all libraries, and the interface shows admins a reminder. Changes apply within seconds.
+
+## Youfin inside Jellyfin (web client)
+With *Show the Youfin interface when one of these libraries is opened* (on by default), opening a selected library in the Jellyfin web client shows Youfin
+below the Jellyfin header. *Jellyfin view* switches to the normal library view, *Open Youfin view* switches back. Playing a video opens the normal Jellyfin player.
+For this the plugin adds a small script to `/web/index.html`. It only does so when libraries are selected and the option is on; switch the option off to leave Jellyfin's pages completely untouched.
+Apps (FireTV, Swiftfin, Infuse) are not affected, they use the collections below.
+
+## Open the interface directly
 `https://<server>/Youfin/Web/` in the browser where you are signed in to Jellyfin.
 The language follows the browser; you can change it with the selector in the header (see [TRANSLATING.md](TRANSLATING.md)).
 

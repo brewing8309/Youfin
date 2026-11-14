@@ -229,6 +229,13 @@ public class YoufinController : YoufinApiBase
         return VideoDto.From(v, index.ChannelName(v.Channel.Key), pos, played, fav, sid, sid is null ? null : index.GetSeries(sid)?.Name);
     }
 
+    /// <summary>Whether libraries were chosen in the plugin settings (the interface hints admins otherwise).</summary>
+    [HttpGet("Settings")]
+    public ActionResult<SettingsDto> Settings() => new SettingsDto(
+        Services.LibraryScanner.IncludedLibraries().Length > 0,
+        Services.LibraryScanner.IncludedLibraries().Select(g => g.ToString("N")).ToArray(),
+        Plugin.Instance?.Configuration.ReplaceLibraryView ?? false);
+
     [HttpGet("Web")]
     [AllowAnonymous]
     public IActionResult WebRoot() =>
@@ -261,6 +268,8 @@ public class YoufinController : YoufinApiBase
 }
 
 /// <summary>Slim projection; clients fetch images/playback via standard Jellyfin endpoints using ItemId.</summary>
+public sealed record SettingsDto(bool LibrariesConfigured, string[] LibraryIds, bool ReplaceLibraryView);
+
 public sealed record NameBody(string? Name);
 
 public sealed record MergeBody(string? Into);

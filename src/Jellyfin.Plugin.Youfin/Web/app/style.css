@@ -59,3 +59,5 @@ body.selmode .kebab{display:none}
 .sub{color:var(--dim);margin:4px 0 12px}
 #lang{background:var(--panel);color:var(--text);border:0;border-radius:8px;padding:6px 8px;margin-right:12px;font:inherit}
 nav a.about{margin-top:18px;color:var(--dim);font-size:13px}.box a{color:var(--hi)}.box p{margin:2px 0;color:#ccc}
+.banner{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#2a2410;border:1px solid #5c4a14;color:#ffd98a;border-radius:12px;padding:12px 16px;margin-bottom:18px}
+body.embed #menu{display:none}body.embed header{height:48px}body.embed nav{top:48px}body.embed main{margin-top:48px}

@@ -3,6 +3,7 @@ using Jellyfin.Plugin.Youfin.Data;
 using Jellyfin.Plugin.Youfin.Services;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -14,6 +15,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     {
         services.AddSingleton(sp => new UserDataStore(Plugin.Instance!.DataFolderPath));
         services.AddSingleton<LibraryScanner>();
+        services.AddTransient<IStartupFilter, YoufinStartupFilter>();
         services.AddSingleton<IndexService>();
         services.AddHostedService(sp => sp.GetRequiredService<IndexService>());
     }

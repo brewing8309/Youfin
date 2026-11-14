@@ -23,3 +23,13 @@ Neue DLL ersetzen und Jellyfin neu starten. Einstellungen und Nutzerdaten (`<Plu
 - Die YouTube-Optik gibt es nur im Web. Die Apps zeigen Collections.
 - Autoplay per Link ist nicht möglich: Die Oberfläche öffnet die Jellyfin-Detailseite des Videos.
 - Serien, Merges und Zuordnungen werden ohne Neuscan der Bibliothek angewendet. Serien und Kanal-Verwaltung können nur Admins ändern, Sammlungen jeder Nutzer für sich.
+
+## Bibliotheken auswählen
+Dashboard → Plugins → Youfin → *Bibliotheken für Youfin*. Wähle die Bibliotheken mit deinen YouTube-Videos; deine übrigen Filme und Serien bleiben dann aus Youfin heraus.
+Ohne Auswahl verwendet Youfin alle Bibliotheken (Admins bekommen in der Oberfläche einen Hinweis). Änderungen gelten nach wenigen Sekunden.
+
+## Youfin in Jellyfin (Webclient)
+Mit der Option *Youfin-Oberfläche anzeigen, wenn eine dieser Bibliotheken geöffnet wird* (standardmäßig an) zeigt der Jellyfin-Webclient beim Öffnen einer gewählten Bibliothek die Youfin-Oberfläche unter der Jellyfin-Kopfzeile.
+*Jellyfin-Ansicht* wechselt zur normalen Bibliotheksansicht, *Youfin-Ansicht öffnen* zurück. Abspielen öffnet den normalen Jellyfin-Player.
+Dafür hängt das Plugin ein kleines Skript in `/web/index.html` ein, und zwar nur bei gewählten Bibliotheken und aktiver Option. Mit ausgeschalteter Option bleiben Jellyfins Seiten völlig unverändert.
+Die Apps (FireTV, Swiftfin, Infuse) sind nicht betroffen, sie nutzen die Collections.

@@ -97,6 +97,11 @@ public sealed class IndexService : IHostedService, IDisposable
     public Task StartAsync(CancellationToken ct)
     {
         _library.ItemAdded += OnChange;
+        if (Plugin.Instance is { } plugin)
+        {
+            plugin.ConfigurationChanged += OnConfigChanged;   // e.g. other libraries selected
+        }
+
         _library.ItemUpdated += OnChange;
         _library.ItemRemoved += OnChange;
         _timer.Change(TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan);
@@ -106,12 +111,19 @@ public sealed class IndexService : IHostedService, IDisposable
     public Task StopAsync(CancellationToken ct)
     {
         _library.ItemAdded -= OnChange;
+        if (Plugin.Instance is { } plugin)
+        {
+            plugin.ConfigurationChanged -= OnConfigChanged;
+        }
+
         _library.ItemUpdated -= OnChange;
         _library.ItemRemoved -= OnChange;
         return Task.CompletedTask;
     }
 
     public void Dispose() => _timer.Dispose();
+
+    private void OnConfigChanged(object? sender, MediaBrowser.Model.Plugins.BasePluginConfiguration e) => _timer.Change(TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
 
     private void OnChange(object? sender, ItemChangeEventArgs e) => _timer.Change(Debounce, Timeout.InfiniteTimeSpan);
 }

@@ -169,5 +169,12 @@
  "about.source": "Quellcode und Originalprojekt",
  "about.license": "Lizenziert unter der GNU GPL v3 mit zusätzlichen Bedingungen (siehe NOTICE).",
  "about.warranty": "Dieses Programm kommt OHNE JEDE GARANTIE.",
- "about.close": "Schließen"
+ "about.close": "Schließen",
+ "cfg.libraries": "Bibliotheken für Youfin",
+ "cfg.librariesHint": "Wähle die Bibliotheken mit deinen YouTube-Videos. Ist keine ausgewählt, werden alle Bibliotheken verwendet.",
+ "banner.libraries": "Youfin zeigt derzeit Videos aus allen deinen Bibliotheken. Wähle in den Plugin-Einstellungen, welche Bibliotheken verwendet werden.",
+ "banner.open": "Einstellungen öffnen",
+ "header.nativeView": "Jellyfin-Ansicht",
+ "inject.openYoufin": "Youfin-Ansicht öffnen",
+ "cfg.replaceView": "Youfin-Oberfläche anzeigen, wenn eine dieser Bibliotheken im Jellyfin-Webclient geöffnet wird"
 }

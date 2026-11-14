@@ -169,5 +169,12 @@
  "about.source": "Source code and original project",
  "about.license": "Licensed under the GNU GPL v3 with additional terms (see NOTICE).",
  "about.warranty": "This program comes with ABSOLUTELY NO WARRANTY.",
- "about.close": "Close"
+ "about.close": "Close",
+ "cfg.libraries": "Libraries to include in Youfin",
+ "cfg.librariesHint": "Select the libraries that contain your YouTube videos. If none is selected, all libraries are included.",
+ "banner.libraries": "Youfin currently shows videos from all your libraries. Choose which libraries to include in the plugin settings.",
+ "banner.open": "Open settings",
+ "header.nativeView": "Jellyfin view",
+ "inject.openYoufin": "Open Youfin view",
+ "cfg.replaceView": "Show the Youfin interface when one of these libraries is opened in the Jellyfin web client"
 }

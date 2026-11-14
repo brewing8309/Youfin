@@ -30,12 +30,19 @@ public sealed class LibraryScanner
     /// <summary>Raw records; channel merges are applied later by <see cref="VideoIndex"/>.</summary>
     public IReadOnlyList<VideoRecord> Scan()
     {
-        var items = _library.GetItemList(new InternalItemsQuery
+        var query = new InternalItemsQuery
         {
             IncludeItemTypes = VideoKinds,
             Recursive = true,
             IsVirtualItem = false,
-        });
+        };
+        var libraries = IncludedLibraries();
+        if (libraries.Length > 0)
+        {
+            query.AncestorIds = libraries;   // only the libraries chosen in the plugin settings
+        }
+
+        var items = _library.GetItemList(query);
 
         var result = new List<VideoRecord>(items.Count);
         foreach (var item in items)
@@ -53,6 +60,11 @@ public sealed class LibraryScanner
         _log.LogInformation("Youfin: indexed {Count} videos", result.Count);
         return result;
     }
+
+    /// <summary>Libraries chosen in the plugin settings; empty means all libraries.</summary>
+    public static Guid[] IncludedLibraries() =>
+        (Plugin.Instance?.Configuration.IncludedLibraryIds ?? Array.Empty<string>())
+            .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty).ToArray();
 
     private VideoRecord ToRecord(BaseItem item)
     {

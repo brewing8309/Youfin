@@ -8,6 +8,15 @@
       <h2 style="display:flex;align-items:center;gap:12px"><img id="YoufinIcon" alt="" width="36" height="36">Youfin</h2>
       <p><a is="emby-linkbutton" class="button-link" id="YoufinOpen" target="_blank"><span data-i18n="cfg.open">Open Youfin interface</span></a></p>
       <form id="YoufinForm">
+        <h3 data-i18n="cfg.libraries">Libraries to include in Youfin</h3>
+        <div class="fieldDescription" data-i18n="cfg.librariesHint">Select the libraries that contain your YouTube videos. If none is selected, all libraries are included.</div>
+        <div id="YoufinLibraries"></div>
+        <br>
+        <label class="checkboxContainer">
+          <input is="emby-checkbox" type="checkbox" id="ReplaceLibraryView">
+          <span data-i18n="cfg.replaceView">Show the Youfin interface when one of these libraries is opened in the Jellyfin web client</span>
+        </label>
+        <br>
         <label class="checkboxContainer">
           <input is="emby-checkbox" type="checkbox" id="SyncCollections">
           <span data-i18n="cfg.syncSeries">Create a Jellyfin collection per series (for FireTV, Swiftfin, Infuse)</span>
@@ -48,7 +57,14 @@
         page.querySelector('#YoufinOpen').href = web('');
         translate();
         Dashboard.showLoadingMsg();
-        ApiClient.getPluginConfiguration(id).then(function (c) {
+        Promise.all([ApiClient.getPluginConfiguration(id), ApiClient.getJSON(ApiClient.getUrl('Library/VirtualFolders'))]).then(function (r) {
+          var c = r[0], libs = r[1] || [], chosen = (c.IncludedLibraryIds || []).map(function (x) { return String(x).replace(/-/g, '').toLowerCase(); });
+          var esc = function (s) { return String(s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); };
+          page.querySelector('#YoufinLibraries').innerHTML = libs.map(function (l) {
+            var on = chosen.indexOf(String(l.ItemId).replace(/-/g, '').toLowerCase()) >= 0;
+            return '<label class="checkboxContainer"><input is="emby-checkbox" type="checkbox" data-id="' + esc(l.ItemId) + '"' + (on ? ' checked' : '') + '><span>' + esc(l.Name) + (l.CollectionType ? ' (' + esc(l.CollectionType) + ')' : '') + '</span></label>';
+          }).join('');
+          page.querySelector('#ReplaceLibraryView').checked = c.ReplaceLibraryView !== false;
           page.querySelector('#SyncCollections').checked = !!c.SyncCollections;
           page.querySelector('#SyncChannelCollections').checked = !!c.SyncChannelCollections;
           Dashboard.hideLoadingMsg();
@@ -58,8 +74,10 @@
         e.preventDefault();
         Dashboard.showLoadingMsg();
         ApiClient.getPluginConfiguration(id).then(function (c) {
+          c.ReplaceLibraryView = page.querySelector('#ReplaceLibraryView').checked;
           c.SyncCollections = page.querySelector('#SyncCollections').checked;
           c.SyncChannelCollections = page.querySelector('#SyncChannelCollections').checked;
+          c.IncludedLibraryIds = Array.prototype.map.call(page.querySelectorAll('#YoufinLibraries input:checked'), function (i) { return i.getAttribute('data-id'); });
           ApiClient.updatePluginConfiguration(id, c).then(Dashboard.processPluginConfigurationUpdateResult);
         });
       });

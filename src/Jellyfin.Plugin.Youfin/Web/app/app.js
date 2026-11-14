@@ -4,10 +4,14 @@
   var main = document.getElementById('main');
   var view = localStorage.getItem('youfin.view') || 'grid';
   var isAdmin = false;
+  var libsMissing = false;   // admin hint: no libraries chosen in the plugin settings yet
   var vc = {};            // video cache: id -> dto (for the ⋯ menu)
   var sel = {};           // selected video ids
   var selMode = false;
   // Jellyfin may be served under a base path (reverse proxy), e.g. /jellyfin
+  // embedded inside the Jellyfin web client by inject.js (?embed=1&lib=<library id>)
+  var EMBED = /[?&]embed=1\b/.test(location.search), EMBED_LIB = (new URLSearchParams(location.search)).get('lib');
+  if (EMBED) document.body.classList.add('embed');
   var BASE = location.pathname.indexOf('/Youfin/Web') >= 0 ? location.pathname.slice(0, location.pathname.indexOf('/Youfin/Web')) : '';
 
   // ---------- i18n ----------
@@ -55,7 +59,21 @@
     s.innerHTML = langs.map(function (l) { return '<option value="' + l.code + '">' + l.name + '</option>'; }).join('');
     s.value = LANG;
     s.onchange = function () { localStorage.setItem('youfin.lang', s.value); location.reload(); };
-    document.getElementById('tojf').href = BASE + '/web/';
+    var back = document.getElementById('tojf');
+    back.href = BASE + '/web/';
+    if (EMBED) {
+      // inside Jellyfin: the link switches the Jellyfin page back to its own library view
+      back.textContent = tr('header.nativeView');
+      back.onclick = function (e) {
+        e.preventDefault();
+        try {
+          var l = JSON.parse(window.top.sessionStorage.getItem('youfin.native') || '[]');
+          if (EMBED_LIB && l.indexOf(EMBED_LIB) < 0) l.push(EMBED_LIB);
+          window.top.sessionStorage.setItem('youfin.native', JSON.stringify(l));
+          window.top.dispatchEvent(new HashChangeEvent('hashchange'));
+        } catch (err) { window.top.location.reload(); }
+      };
+    }
   }
 
   // ---------- helpers ----------
@@ -88,6 +106,12 @@
   function fail(e) { main.innerHTML = '<div class="empty">' + esc(tr('err.page', { msg: e.message })) + '</div>'; }
   function toast(msg) { var el = $('toast'); el.textContent = msg; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { el.hidden = true; }, 2500); }
   function ids(o) { return Object.keys(o); }
+  // playback runs in the Jellyfin player, so details links leave the embedded frame
+  document.addEventListener('click', function (e) {
+    if (!EMBED) return;
+    var a = e.target.closest && e.target.closest('a[href*="/web/#/details"]');
+    if (a) { e.preventDefault(); window.top.location.href = a.href; }
+  });
   function playUrl(id) { return BASE + '/web/#/details?id=' + id; }
   function btn(label, fn, cls) { var b = document.createElement('button'); b.className = 'btn' + (cls ? ' ' + cls : ''); b.textContent = label; b.onclick = fn; return b; }
 
@@ -243,7 +267,7 @@
   // ---------- routes ----------
   var routes = {
     home: function () {
-      main.innerHTML = '';
+      main.innerHTML = libsMissing ? '<div class="banner"><span>' + esc(tr('banner.libraries')) + '</span> <a class="btn" href="' + BASE + '/web/#/configurationpage?name=Youfin">' + esc(tr('banner.open')) + '</a></div>' : '';
       row(main, tr('home.resume'), '#/resume', '/Youfin/Videos?filter=resume&limit=8');
       row(main, tr('home.nextUp'), '#/series', '/Youfin/NextUp?limit=8');
       row(main, tr('home.newSingles'), '#/single', '/Youfin/Videos?single=true&sort=Added&limit=8');
@@ -429,6 +453,6 @@
   window.addEventListener('hashchange', route);
   loadI18n().then(function () {
     applyStatic();
-    if (C) { return api('/Users/' + C.uid).then(function (u) { isAdmin = !!(u.Policy && u.Policy.IsAdministrator); }).catch(function () { }); }
+    if (C) { return api('/Users/' + C.uid).then(function (u) { isAdmin = !!(u.Policy && u.Policy.IsAdministrator); }).then(function () { if (isAdmin) return api('/Youfin/Settings').then(function (s) { libsMissing = !s.LibrariesConfigured; }); }).catch(function () { }); }
   }).then(route);
 })();

@@ -120,3 +120,29 @@ public class WebResourceTests
         Assert.True(s!.Length > 100);
     }
 }
+
+public class WebInjectionTests
+{
+    [Fact]
+    public void InsertsScriptBeforeLastHeadAndOnlyOnce()
+    {
+        var html = "<html><head><title>x</title></head><body></body></html>";
+        var once = Jellyfin.Plugin.Youfin.Services.WebInjection.Inject(html, "/Youfin/Web/inject.js?v=1");
+        Assert.Contains("<script data-youfin src=\"/Youfin/Web/inject.js?v=1\" defer></script></head>", once);
+        Assert.Equal(once, Jellyfin.Plugin.Youfin.Services.WebInjection.Inject(once, "/Youfin/Web/inject.js?v=1"));
+    }
+
+    [Fact]
+    public void LeavesHtmlWithoutHeadUntouched() =>
+        Assert.Equal("<p>hi</p>", Jellyfin.Plugin.Youfin.Services.WebInjection.Inject("<p>hi</p>", "/x.js"));
+
+    [Theory]
+    [InlineData("/web", true)]
+    [InlineData("/web/", true)]
+    [InlineData("/WEB/index.html", true)]
+    [InlineData("/web/main.bundle.js", false)]
+    [InlineData("/Youfin/Web/", false)]
+    [InlineData("/", false)]
+    public void RecognisesIndexPages(string path, bool expected) =>
+        Assert.Equal(expected, Jellyfin.Plugin.Youfin.Services.WebInjection.IsIndexPath(new Microsoft.AspNetCore.Http.PathString(path)));
+}

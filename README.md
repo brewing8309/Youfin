@@ -49,6 +49,8 @@ Downloaded YouTube videos don't fit well into Jellyfin's movies-and-shows struct
 | **Search** | Title, channel, description, YouTube ID, tags and categories |
 | **Management** | Via the ⋯ menu and multi-select: assign to a series, mark as standalone, add to a collection |
 | **Playback** | With the native Jellyfin player; progress and "watched" stay in Jellyfin |
+| **Your libraries only** | Choose which Jellyfin libraries Youfin uses, so your normal movies and shows stay out |
+| **Inside Jellyfin** | Opening one of your chosen libraries in the Jellyfin web client shows the Youfin interface right there |
 
 <table>
   <tr>
@@ -84,7 +86,11 @@ More in [docs/ORGANISATION.md](docs/ORGANISATION.md).
 1. Download `youfin_<version>.zip` from the [releases](https://github.com/brewing8309/Youfin/releases) and copy the DLL to `<Jellyfin data folder>/plugins/Youfin_<version>/`.
 2. Restart Jellyfin.
 
-**Open it:** `https://<your-server>/Youfin/Web/` in a browser where you are signed in to Jellyfin.
+**Choose your libraries:** Dashboard → Plugins → Youfin → select the libraries that contain your YouTube videos. Without a selection Youfin uses all libraries (the interface reminds admins to choose).
+
+**Use it inside Jellyfin:** with the default setting *Show the Youfin interface when one of these libraries is opened*, clicking such a library in the Jellyfin web client shows Youfin below the Jellyfin header. A button *Jellyfin view* switches back to the normal library view (and *Open Youfin view* returns). Playing a video opens the normal Jellyfin player. This works in the web client only; the apps show the collections (see below).
+
+**Or open it directly:** `https://<your-server>/Youfin/Web/` in a browser where you are signed in to Jellyfin.
 
 For an entry in the Jellyfin sidebar, add this to `jellyfin-web/config.json`:
 
@@ -101,6 +107,8 @@ These apps do not show plugin pages. If you like, Youfin therefore creates **one
 Enable *Create a collection per series* under Dashboard → Plugins → Youfin, then run the scheduled task *Youfin: Sync series collections*. It runs daily afterwards.
 
 ## How it works
+
+For the in-Jellyfin view the plugin adds one small script to Jellyfin's web page (`/web/index.html`). It does this only when libraries are chosen and the option is on; otherwise Jellyfin's pages are served untouched. Turn the option off in the plugin settings to remove it.
 
 ```
  Jellyfin library ──► Scanner (read-only) ──► In-memory index ◄── state.json (only your assignments)

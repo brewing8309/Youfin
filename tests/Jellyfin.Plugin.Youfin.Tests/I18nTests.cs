@@ -28,7 +28,7 @@ public class I18nTests
     private static string Base(string key) => Plural.Replace(key, "");
 
     private static HashSet<string> UsedKeys() =>
-        Regex.Matches(Read("app.app.js"), @"\btr\('([\w.]+)'").Select(m => m.Groups[1].Value)
+        Regex.Matches(Read("app.app.js") + Read("app.inject.js"), @"\btr\('([\w.]+)'").Select(m => m.Groups[1].Value)
             .Concat(Regex.Matches(Read("app.index.html") + Read("index.html"), @"data-i18n(?:-[a-z-]+)?=""([\w.]+)""").Select(m => m.Groups[1].Value))
             .ToHashSet();
 
